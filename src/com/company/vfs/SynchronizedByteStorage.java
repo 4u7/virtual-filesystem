@@ -1,73 +1,39 @@
 package com.company.vfs;
 
 import java.io.IOException;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-public class SynchronizedByteStorage implements ByteStorage {
+class SynchronizedByteStorage implements ByteStorage {
 
     private final ByteStorage byteStorage;
-    private final ReadWriteLock lock;
 
-    public SynchronizedByteStorage(ByteStorage byteStorage) {
+    SynchronizedByteStorage(ByteStorage byteStorage) {
 
         this.byteStorage = byteStorage;
-        this.lock = new ReentrantReadWriteLock();
     }
 
     @Override
-    public void putByte(int offset, byte value) throws IOException {
-        lock.writeLock().lock();
-        try {
-            byteStorage.putByte(offset, value);
-        }
-        finally {
-            lock.writeLock().unlock();
-        }
+    synchronized public void putByte(int offset, byte value) throws IOException {
+        byteStorage.putByte(offset, value);
     }
 
     @Override
-    public byte getByte(int offset) throws IOException {
-        lock.readLock().lock();
-        try {
-            return byteStorage.getByte(offset);
-        }
-        finally {
-            lock.readLock().unlock();
-        }
+    synchronized public byte getByte(int offset) throws IOException {
+        return byteStorage.getByte(offset);
     }
 
     @Override
-    public int getInt(int offset) throws IOException {
-        lock.readLock().lock();
-        try {
-            return byteStorage.getInt(offset);
-        }
-        finally {
-            lock.readLock().unlock();
-        }
+    synchronized public int getInt(int offset) throws IOException {
+        return byteStorage.getInt(offset);
     }
 
     @Override
-    public void putInt(int offset, int value) throws IOException {
-        lock.writeLock().lock();
-        try {
-            byteStorage.putInt(offset, value);
-        }
-        finally {
-            lock.writeLock().unlock();
-        }
+    synchronized public void putInt(int offset, int value) throws IOException {
+        byteStorage.putInt(offset, value);
     }
 
     @Override
-    public byte[] getBytes(int offset, int length) throws IOException {
-        lock.readLock().lock();
-        try {
-            return byteStorage.getBytes(offset, length);
-        }
-        finally {
-            lock.readLock().unlock();
-        }
+    synchronized public byte[] getBytes(int offset, int length) throws IOException {
+        return byteStorage.getBytes(offset, length);
     }
 
     @Override

@@ -11,7 +11,8 @@ class EntryOutputStream extends OutputStream {
 
     private int position = 0;
 
-    EntryOutputStream(Metadata metadata, ByteStorage blockByteStorage, BlockManager blockManager, boolean append) {
+    EntryOutputStream(Metadata metadata, ByteStorage blockByteStorage, BlockManager blockManager, boolean append)
+            throws IOException {
         this.metadata = metadata;
         this.blockByteStorage = blockByteStorage;
         this.blockManager = blockManager;

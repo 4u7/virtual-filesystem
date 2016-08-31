@@ -10,7 +10,7 @@ interface Metadata {
 
     int getFirstBlock() throws IOException;
 
-    void setFirstBlock(int currentBlock) throws IOException;
+    void setFirstBlock(int block) throws IOException;
 
     Type getType() throws IOException;
 

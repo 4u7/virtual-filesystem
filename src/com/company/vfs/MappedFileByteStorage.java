@@ -74,7 +74,9 @@ public class MappedFileByteStorage implements ByteStorage {
 
         try(RandomAccessFile randomAccessFile = new RandomAccessFile(path, "rw");
             FileChannel channel = randomAccessFile.getChannel()) {
-            randomAccessFile.setLength(offset + length);
+            if(randomAccessFile.length() < offset + length) {
+                randomAccessFile.setLength(offset + length);
+            }
             byteBuffer = channel.map(FileChannel.MapMode.READ_WRITE, offset, length);
         }
     }

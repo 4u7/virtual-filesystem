@@ -31,4 +31,9 @@ public class EntryInputStream extends InputStream {
 
         return result;
     }
+
+    @Override
+    public int available() throws IOException {
+        return metadata.getDataLength() - position;
+    }
 }

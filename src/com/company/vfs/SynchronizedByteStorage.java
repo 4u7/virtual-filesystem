@@ -38,22 +38,40 @@ public class SynchronizedByteStorage implements ByteStorage {
     }
 
     @Override
-    public int getInt(int offset) {
-        return 0;
+    public int getInt(int offset) throws IOException {
+        lock.readLock().lock();
+        try {
+            return byteStorage.getInt(offset);
+        }
+        finally {
+            lock.readLock().unlock();
+        }
     }
 
     @Override
-    public void putInt(int offset, int value) {
-
+    public void putInt(int offset, int value) throws IOException {
+        lock.writeLock().lock();
+        try {
+            byteStorage.putInt(offset, value);
+        }
+        finally {
+            lock.writeLock().unlock();
+        }
     }
 
     @Override
-    public byte[] getBytes(int offset, int length) {
-        return new byte[0];
+    public byte[] getBytes(int offset, int length) throws IOException {
+        lock.readLock().lock();
+        try {
+            return byteStorage.getBytes(offset, length);
+        }
+        finally {
+            lock.readLock().unlock();
+        }
     }
 
     @Override
     public ByteStorage slice(int offset, int length) {
-        return null;
+        return byteStorage.slice(offset, length);
     }
 }

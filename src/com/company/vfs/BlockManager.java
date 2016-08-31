@@ -133,4 +133,18 @@ class BlockManager {
         int blockTableLength = maxBlocks * 4;
         return blockMapLength + blockTableLength;
     }
+
+    public int getMaxBlocks() {
+        return maxBlocks;
+    }
+
+    public int getBlockCount() {
+        lock.readLock().lock();
+        try {
+            return blockMap.cardinality();
+        }
+        finally {
+            lock.readLock().unlock();
+        }
+    }
 }

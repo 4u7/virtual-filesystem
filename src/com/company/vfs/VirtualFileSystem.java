@@ -12,17 +12,20 @@ public class VirtualFileSystem implements FileSystem {
     private static final int MAGIC_CONSTANT = 0x70AD70E5;
     private static final int HEADER_SIZE = 16;
 
+    private final MetadataManager metadataManager;
+    private final BlockManager blockManager;
+
     private final FileSystemEntryManager fileSystemEntryManager;
 
-    private VirtualFileSystem(ByteStorage byteStorage, int blockSize, int maxBlocks, int maxEntries) {
+    private VirtualFileSystem(ByteStorage byteStorage, int blockSize, int maxBlocks, int maxEntries) throws IOException {
         int metadataSize = MetadataManager.size(maxEntries);
         ByteStorage metadataByteStorage = byteStorage.slice(HEADER_SIZE, metadataSize);
-        MetadataManager metadataManager = new MetadataManager(maxEntries, metadataByteStorage);
+        this.metadataManager = new MetadataManager(maxEntries, metadataByteStorage);
 
         int blockTableOffset = HEADER_SIZE + metadataSize;
         int blockTableSize = BlockManager.size(maxBlocks);
         ByteStorage blockTableByteStorage = byteStorage.slice(blockTableOffset, blockTableSize);
-        BlockManager blockManager = new BlockManager(blockSize, maxBlocks, blockTableByteStorage);
+        this.blockManager = new BlockManager(blockSize, maxBlocks, blockTableByteStorage);
 
         int dataBlocksOffset = blockTableOffset + blockTableSize;
         ByteStorage dataBlocksStorage = byteStorage.slice(dataBlocksOffset, maxBlocks * blockSize);
@@ -56,7 +59,7 @@ public class VirtualFileSystem implements FileSystem {
 
     @Override
     public List<String> getDirectories(String path) throws IOException {
-        return null;
+        return fileSystemEntryManager.getDirectories(path);
     }
 
     @Override
@@ -99,6 +102,22 @@ public class VirtualFileSystem implements FileSystem {
         return null;
     }
 
+    public int getMaxBlocks() {
+        return blockManager.getMaxBlocks();
+    }
+
+    public int getMaxEntries() {
+        return metadataManager.getMaxEntries();
+    }
+
+    public int getBlockCount() {
+        return blockManager.getBlockCount();
+    }
+
+    public int getEntriesCount() {
+        return metadataManager.getEntriesCount();
+    }
+
     public static class Builder {
 
         private static final int DEFAULT_BLOCK_SIZE = 4096;
@@ -131,12 +150,14 @@ public class VirtualFileSystem implements FileSystem {
             return new VirtualFileSystem(byteStorage, blockSize, maxBlocks, maxEntries);
         }
 
-        public void maxEntries(int maxEntries) {
+        public Builder maxEntries(int maxEntries) {
             this.maxEntries = maxEntries;
+            return this;
         }
 
-        public void maxBlocks(int maxBlocks) {
+        public Builder maxBlocks(int maxBlocks) {
             this.maxBlocks = maxBlocks;
+            return this;
         }
     }
 }

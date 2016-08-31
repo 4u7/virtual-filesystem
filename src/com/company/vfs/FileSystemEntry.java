@@ -4,26 +4,26 @@ import com.company.vfs.exception.FileFormatException;
 
 import java.io.*;
 
-public class FileSystemEntry {
+class FileSystemEntry {
 
     private final int metadataId;
     private final String name;
 
-    public FileSystemEntry(int metadataId, String name) {
+    FileSystemEntry(int metadataId, String name) {
 
         this.name = name;
         this.metadataId = metadataId;
     }
 
-    public String getName() {
+    String getName() {
         return name;
     }
 
-    public int getMetadataId() {
+    int getMetadataId() {
         return metadataId;
     }
 
-    public static FileSystemEntry read(InputStream inputStream) throws IOException {
+    static FileSystemEntry read(InputStream inputStream) throws IOException {
         try(DataInputStream dataInputStream = new DataInputStream(inputStream)) {
             int metadataId = dataInputStream.readInt();
             int nameByteLength = dataInputStream.readInt();
@@ -35,7 +35,7 @@ public class FileSystemEntry {
         }
     }
 
-    public void write(OutputStream outputStream) throws IOException {
+    void write(OutputStream outputStream) throws IOException {
         try(DataOutputStream dataOutputStream = new DataOutputStream(outputStream)) {
             dataOutputStream.writeInt(metadataId);
 

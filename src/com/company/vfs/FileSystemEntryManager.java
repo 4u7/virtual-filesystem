@@ -11,8 +11,9 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
-public class FileSystemEntryManager {
+class FileSystemEntryManager {
 
     private final MetadataManager metadataManager;
     private final BlockManager blockManager;
@@ -25,7 +26,7 @@ public class FileSystemEntryManager {
         this.dataBlockStorage = new SynchronizedByteStorage(dataBlockStorage);
     }
 
-    public void createDirectory(String path) throws IOException {
+    void createDirectory(String path) throws IOException {
 
         if(PathUtils.isRoot(path)) {
             throw new FileAlreadyExistsException(path);
@@ -45,6 +46,24 @@ public class FileSystemEntryManager {
         }
 
         createFileSystemEntry(metadata, name, Type.Directory);
+    }
+
+    List<String> getDirectories(String path) throws IOException {
+        Metadata metadata = getMetadata(path);
+
+        if(metadata == null) {
+            throw new NoSuchFileException(path);
+        }
+
+        if(metadata.getType() != Type.Directory) {
+            throw new NotDirectoryException(path);
+        }
+
+        return readDirectoryContents(metadata)
+                .stream()
+                .filter(this::isDirectory)
+                .map(FileSystemEntry::getName)
+                .collect(Collectors.toList());
     }
 
     private Metadata createFileSystemEntry(Metadata metadata, String name, Type type) throws IOException {
@@ -85,10 +104,20 @@ public class FileSystemEntryManager {
         List<FileSystemEntry> contents = new ArrayList<>();
 
         try(InputStream inputStream = new EntryInputStream(metadata, dataBlockStorage, blockManager)) {
-            while (inputStream.available() >= 0) {
+            while (inputStream.available() > 0) {
                 contents.add(FileSystemEntry.read(inputStream));
             }
         }
         return contents;
+    }
+
+    private boolean isDirectory(FileSystemEntry entry) {
+        try {
+            Metadata entryMetadata =  metadataManager.getMetadata(entry.getMetadataId());
+            return entryMetadata.getType() == Type.Directory;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 }

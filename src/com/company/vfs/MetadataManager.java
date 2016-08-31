@@ -22,6 +22,7 @@ public class MetadataManager {
 
     MetadataManager(int maxEntries, ByteStorage byteStorage) throws IOException {
 
+        this.lock = new ReentrantReadWriteLock();
         this.maxEntries = maxEntries;
         this.byteStorage = new SynchronizedByteStorage(byteStorage);
         this.metadataMapOffset = 0;
@@ -35,12 +36,10 @@ public class MetadataManager {
 
         // no root allocated
         if(!metadataMap.get(0)) {
-            metadataMap.set(0);
+            setAllocated(0);
             this.root.setType(Type.Directory);
             this.root.setFirstBlock(-1);
         }
-
-        lock = new ReentrantReadWriteLock();
     }
 
     public static int size(int maxEntries) {
@@ -73,12 +72,7 @@ public class MetadataManager {
                 throw new FileSystemEntriesLimitExceededException();
             }
 
-            metadataMap.set(index);
-            // Set bit in storage
-            int byteOffset = metadataMapOffset + index / 8;
-            byte mapByte = byteStorage.getByte(byteOffset);
-            mapByte |= 1 << (index % 8);
-            byteStorage.putByte(byteOffset, mapByte);
+            setAllocated(index);
 
             MappedMetadata metadata = new MappedMetadata(index, byteStorage, metadataOffset);
             metadata.setType(type);
@@ -89,6 +83,29 @@ public class MetadataManager {
         }
         finally {
             lock.writeLock().unlock();
+        }
+    }
+
+    private void setAllocated(int index) throws IOException {
+        metadataMap.set(index);
+        // Set bit in storage
+        int byteOffset = metadataMapOffset + index / 8;
+        byte mapByte = byteStorage.getByte(byteOffset);
+        mapByte |= 1 << (index % 8);
+        byteStorage.putByte(byteOffset, mapByte);
+    }
+
+    public int getMaxEntries() {
+        return maxEntries;
+    }
+
+    public int getEntriesCount() {
+        lock.readLock().lock();
+        try {
+            return metadataMap.cardinality();
+        }
+        finally {
+            lock.readLock().unlock();
         }
     }
 
@@ -138,7 +155,7 @@ public class MetadataManager {
 
         @Override
         public Type getType() throws IOException {
-            return valueOf(readField(TYPE_INDEX));
+            return Type.valueOf(readField(TYPE_INDEX));
         }
 
         @Override

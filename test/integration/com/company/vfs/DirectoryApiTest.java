@@ -1,7 +1,6 @@
 package com.company.vfs;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -30,6 +29,30 @@ public class DirectoryApiTest {
     public void getDirectories() throws Exception {
         FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
         assertThat(fs.getDirectories("/"), is(Arrays.asList(DIRECTORIES)));
+    }
+
+    @Test
+    public void exists() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+
+        assertTrue(fs.exists("/"));
+        assertTrue(fs.exists(""));
+
+        for(String dir : DIRECTORIES) {
+            assertTrue(fs.exists(dir));
+        }
+    }
+
+    @Test
+    public void isDirectory() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+
+        assertTrue(fs.isDirectory("/"));
+        assertTrue(fs.isDirectory(""));
+
+        for(String dir : DIRECTORIES) {
+            assertTrue(fs.isDirectory(dir));
+        }
     }
 
     @After

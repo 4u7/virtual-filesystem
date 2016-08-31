@@ -39,18 +39,19 @@ public class VirtualFileSystem implements FileSystem {
             throw new NoSuchFileException(path);
         }
 
-        RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
+        try(RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw")) {
 
-        if(randomAccessFile.readInt() != MAGIC_CONSTANT) {
-            throw new FileFormatException("Invalid file format.");
+            if (randomAccessFile.readInt() != MAGIC_CONSTANT) {
+                throw new FileFormatException("Invalid file format.");
+            }
+
+            int blockSize = randomAccessFile.readInt();
+            int maxBlocks = randomAccessFile.readInt();
+            int maxEntries = randomAccessFile.readInt();
+
+            ByteStorage byteStorage = new MappedFileByteStorage(path);
+            return new VirtualFileSystem(byteStorage, blockSize, maxBlocks, maxEntries);
         }
-
-        int blockSize = randomAccessFile.readInt();
-        int maxBlocks = randomAccessFile.readInt();
-        int maxEntries = randomAccessFile.readInt();
-
-        ByteStorage byteStorage = new MappedFileByteStorage(path);
-        return new VirtualFileSystem(byteStorage, blockSize, maxBlocks, maxEntries);
     }
 
     public static Builder create(String path) {
@@ -64,22 +65,22 @@ public class VirtualFileSystem implements FileSystem {
 
     @Override
     public List<String> getFiles(String path) throws IOException {
-        return null;
+        return fileSystemEntryManager.getFiles(path);
     }
 
     @Override
     public boolean exists(String path) throws IOException {
-        return false;
+        return fileSystemEntryManager.exists(path);
     }
 
     @Override
     public void delete(String path) throws IOException {
-
+        fileSystemEntryManager.delete(path);
     }
 
     @Override
     public boolean isDirectory(String path) throws IOException {
-        return false;
+        return fileSystemEntryManager.isDirectory(path);
     }
 
     @Override
@@ -89,17 +90,17 @@ public class VirtualFileSystem implements FileSystem {
 
     @Override
     public OutputStream createFile(String path) throws IOException {
-        return null;
+        return fileSystemEntryManager.createFile(path);
     }
 
     @Override
     public OutputStream writeFile(String path, boolean append) throws IOException {
-        return null;
+        return fileSystemEntryManager.writeFile(path, append);
     }
 
     @Override
     public InputStream readFile(String path) throws IOException {
-        return null;
+        return fileSystemEntryManager.readFile(path);
     }
 
     public int getMaxBlocks() {

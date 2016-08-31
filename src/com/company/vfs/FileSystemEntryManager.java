@@ -169,6 +169,9 @@ class FileSystemEntryManager {
     }
 
     private Metadata createFileSystemEntry(Metadata metadata, String name, Type type) throws IOException {
+
+        // TODO: ensure thread safety
+
         Metadata entryMetadata = metadataManager.allocateMetadata(type);
 
         try(OutputStream outputStream = new EntryOutputStream(metadata, dataBlockStorage, blockManager, true)) {

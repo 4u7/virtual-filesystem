@@ -4,13 +4,15 @@ import com.company.vfs.Metadata.Type;
 import com.company.vfs.exception.FileSystemEntriesLimitExceededException;
 
 import java.io.IOException;
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import static com.company.vfs.Metadata.Type.valueOf;
 
-public class MetadataManager {
+class MetadataManager {
 
     private final int maxEntries;
     private final ByteStorage byteStorage;
@@ -19,12 +21,13 @@ public class MetadataManager {
     private final int metadataMapOffset;
     private final int metadataOffset;
     private final ReadWriteLock lock;
+    private final ArrayList<WeakReference<MappedMetadata>> metadataCache;
 
     MetadataManager(int maxEntries, ByteStorage byteStorage) throws IOException {
 
         this.lock = new ReentrantReadWriteLock();
         this.maxEntries = maxEntries;
-        this.byteStorage = new SynchronizedByteStorage(byteStorage);
+        this.byteStorage = byteStorage;
         this.metadataMapOffset = 0;
 
         int metadataMapLength = (maxEntries + 7) / 8;
@@ -34,6 +37,8 @@ public class MetadataManager {
         this.metadataOffset = metadataMapLength;
         this.root = new MappedMetadata(0, byteStorage, metadataOffset);
 
+        this.metadataCache = new ArrayList<>(Collections.nCopies(maxEntries, null));
+
         // no root allocated
         if(!metadataMap.get(0)) {
             setAllocated(0);
@@ -42,21 +47,40 @@ public class MetadataManager {
         }
     }
 
-    public static int size(int maxEntries) {
+    static int size(int maxEntries) {
         int metadataMapLength = (maxEntries + 7) / 8;
         return metadataMapLength + maxEntries * MappedMetadata.SIZE;
     }
 
-    public Metadata getRoot() {
+    Metadata getRoot() {
         return root;
     }
 
-    public Metadata getMetadata(int metadataId) {
+    Metadata getMetadata(int metadataId) {
+
+        if(metadataId < 0) {
+            throw new IndexOutOfBoundsException();
+        }
+
+        if(metadataId == 0) {
+            return root;
+        }
+
         lock.readLock().lock();
         try {
             if (metadataMap.get(metadataId)) {
-                return new MappedMetadata(metadataId, byteStorage, metadataOffset);
+
+                WeakReference<MappedMetadata> cachedMetadata = metadataCache.get(metadataId);
+                if(cachedMetadata != null && cachedMetadata.get() != null)
+                {
+                    return cachedMetadata.get();
+                }
+
+                MappedMetadata metadata = new MappedMetadata(metadataId, byteStorage, metadataOffset);
+                metadataCache.set(metadataId, new WeakReference<>(metadata));
+                return metadata;
             }
+
             return null;
         }
         finally {
@@ -64,7 +88,7 @@ public class MetadataManager {
         }
     }
 
-    public Metadata allocateMetadata(Type type) throws IOException {
+    Metadata allocateMetadata(Type type) throws IOException {
         lock.writeLock().lock();
         try {
             int index = metadataMap.nextClearBit(0);
@@ -79,11 +103,26 @@ public class MetadataManager {
             metadata.setDataLength(0);
             metadata.setFirstBlock(-1);
 
+            metadataCache.set(index, new WeakReference<>(metadata));
             return metadata;
         }
         finally {
             lock.writeLock().unlock();
         }
+    }
+
+    int getEntriesCount() {
+        lock.readLock().lock();
+        try {
+            return metadataMap.cardinality();
+        }
+        finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    int getMaxEntries() {
+        return maxEntries;
     }
 
     private void setAllocated(int index) throws IOException {
@@ -93,20 +132,6 @@ public class MetadataManager {
         byte mapByte = byteStorage.getByte(byteOffset);
         mapByte |= 1 << (index % 8);
         byteStorage.putByte(byteOffset, mapByte);
-    }
-
-    public int getMaxEntries() {
-        return maxEntries;
-    }
-
-    public int getEntriesCount() {
-        lock.readLock().lock();
-        try {
-            return metadataMap.cardinality();
-        }
-        finally {
-            lock.readLock().unlock();
-        }
     }
 
     private static class MappedMetadata implements Metadata {
@@ -130,12 +155,12 @@ public class MetadataManager {
         }
 
         @Override
-        public int getDataLength() throws IOException {
+        synchronized public int getDataLength() throws IOException {
             return readField(DATA_LENGTH_INDEX);
         }
 
         @Override
-        public void updateDataLength(int length) throws IOException {
+        synchronized public void updateDataLength(int length) throws IOException {
             // TODO: check thread safety
             int dataLength = getDataLength();
             if(length > dataLength) {
@@ -144,17 +169,17 @@ public class MetadataManager {
         }
 
         @Override
-        public int getFirstBlock() throws IOException {
+        synchronized public int getFirstBlock() throws IOException {
             return readField(FIRST_BLOCK_INDEX);
         }
 
         @Override
-        public void setFirstBlock(int block) throws IOException {
+        synchronized public void setFirstBlock(int block) throws IOException {
             writeField(FIRST_BLOCK_INDEX, block);
         }
 
         @Override
-        public Type getType() throws IOException {
+        synchronized public Type getType() throws IOException {
             return Type.valueOf(readField(TYPE_INDEX));
         }
 
@@ -163,11 +188,11 @@ public class MetadataManager {
             return id;
         }
 
-        private void setType(Type type) throws IOException {
+        synchronized private void setType(Type type) throws IOException {
             writeField(TYPE_INDEX, type.value);
         }
 
-        private void setDataLength(int length) throws IOException {
+        synchronized private void setDataLength(int length) throws IOException {
             writeField(DATA_LENGTH_INDEX, length);
         }
 

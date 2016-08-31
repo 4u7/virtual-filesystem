@@ -25,7 +25,7 @@ public class EntryInputStream extends InputStream {
             return -1;
         }
 
-        int offset = blockManager.getGlobalOffset(metadata, position);
+        int offset = blockManager.getBlockOffset(metadata, position);
         int result = blockByteStorage.getByte(offset) & 0xFF;
         ++position;
 

@@ -23,7 +23,7 @@ class EntryOutputStream extends OutputStream {
 
     @Override
     public void write(int b) throws IOException {
-        int offset = blockManager.ensureGlobalOffset(metadata, position);
+        int offset = blockManager.ensureBlockOffset(metadata, position);
         blockByteStorage.putByte(offset, (byte)b);
         ++position;
 

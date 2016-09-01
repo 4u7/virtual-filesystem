@@ -6,6 +6,8 @@ import com.company.vfs.exception.*;
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 class FileSystemEntryManager {
@@ -14,6 +16,7 @@ class FileSystemEntryManager {
     private final BlockManager blockManager;
     private final ByteStorage dataBlockStorage;
     private final ConcurrentHashMap<Metadata, Integer> openedFiles;
+    private final WeakHashMap<Metadata, ReadWriteLock> directoryLocks;
 
     FileSystemEntryManager(MetadataManager metadataManager, BlockManager blockManager, ByteStorage dataBlockStorage) {
 
@@ -21,6 +24,7 @@ class FileSystemEntryManager {
         this.blockManager = blockManager;
         this.dataBlockStorage = new SynchronizedByteStorage(dataBlockStorage);
         this.openedFiles = new ConcurrentHashMap<>();
+        this.directoryLocks = new WeakHashMap<>();
     }
 
     void createDirectory(String path) throws IOException {
@@ -244,17 +248,6 @@ class FileSystemEntryManager {
         return openedFiles.containsKey(metadata);
     }
 
-    private Metadata createFileSystemEntry(Metadata metadata, String name, Type type) throws IOException {
-
-        Metadata entryMetadata = metadataManager.allocateMetadata(type);
-        try(DataOutputStream outputStream = new DataOutputStream(new EntryOutputStream(metadata, true))) {
-            FileSystemEntry entry = new FileSystemEntry(entryMetadata.getId(), name);
-            entry.write(outputStream);
-        }
-
-        return entryMetadata;
-    }
-
     private Metadata getMetadata(String pathTo) throws IOException {
         List<String> pathComponents = PathUtils.getPathComponents(pathTo);
         Metadata current = metadataManager.getRoot();
@@ -278,25 +271,66 @@ class FileSystemEntryManager {
         return metadataManager.getMetadata(fileSystemEntry.getMetadataId());
     }
 
-    private List<FileSystemEntry> readDirectoryContents(Metadata metadata) throws IOException {
-        List<FileSystemEntry> contents = new ArrayList<>();
-
-        try(DataInputStream inputStream = new DataInputStream(new EntryInputStream(metadata))) {
-            while (inputStream.available() > 0) {
-                contents.add(FileSystemEntry.read(inputStream));
+    private ReadWriteLock getDirectoryLock(Metadata metadata) {
+        synchronized (directoryLocks) {
+            if(directoryLocks.containsKey(metadata)) {
+                return directoryLocks.get(metadata);
             }
+
+            ReadWriteLock lock = new ReentrantReadWriteLock();
+            directoryLocks.put(metadata, lock);
+            return lock;
         }
-        return contents;
+    }
+
+    private Metadata createFileSystemEntry(Metadata metadata, String name, Type type) throws IOException {
+        ReadWriteLock lock = getDirectoryLock(metadata);
+        lock.writeLock().lock();
+        try {
+            Metadata entryMetadata = metadataManager.allocateMetadata(type);
+            try (DataOutputStream outputStream = new DataOutputStream(new EntryOutputStream(metadata, true))) {
+                FileSystemEntry entry = new FileSystemEntry(entryMetadata.getId(), name);
+                entry.write(outputStream);
+            }
+            return entryMetadata;
+        }
+        finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    private List<FileSystemEntry> readDirectoryContents(Metadata metadata) throws IOException {
+        ReadWriteLock lock = getDirectoryLock(metadata);
+        lock.readLock().lock();
+        try {
+            List<FileSystemEntry> contents = new ArrayList<>();
+            try (DataInputStream inputStream = new DataInputStream(new EntryInputStream(metadata))) {
+                while (inputStream.available() > 0) {
+                    contents.add(FileSystemEntry.read(inputStream));
+                }
+            }
+            return contents;
+        }
+        finally {
+            lock.readLock().unlock();
+        }
     }
 
     private void writeDirectoryContents(Metadata metadata, List<FileSystemEntry> entries) throws IOException {
-        metadata.setDataLength(0);
-        try(DataOutputStream outputStream = new DataOutputStream(new EntryOutputStream(metadata, false))) {
-            for (FileSystemEntry entry : entries) {
-                entry.write(outputStream);
+        ReadWriteLock lock = getDirectoryLock(metadata);
+        lock.writeLock().lock();
+        try {
+            metadata.setDataLength(0);
+            try (DataOutputStream outputStream = new DataOutputStream(new EntryOutputStream(metadata, false))) {
+                for (FileSystemEntry entry : entries) {
+                    entry.write(outputStream);
+                }
             }
+            blockManager.truncateBlocksToSize(metadata);
         }
-        blockManager.truncateBlocksToSize(metadata);
+        finally {
+            lock.writeLock().unlock();
+        }
     }
 
     private boolean isDirectory(FileSystemEntry entry) {

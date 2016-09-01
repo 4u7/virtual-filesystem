@@ -15,7 +15,7 @@ public class DirectoryApiTest {
 
     private static final String[] DIRECTORIES = { "foo", "bar", "baz", "竜座" };
 
-    static final String[] INNER_DIRECTORIES = { "lorem ipsum dolor sit amet",
+    private static final String[] INNER_DIRECTORIES = { "lorem ipsum dolor sit amet",
             "Новая Папка 547", "hyvää huomenta", "คนอ้วน" };
 
     @Before
@@ -37,6 +37,9 @@ public class DirectoryApiTest {
     public void getDirectories() throws Exception {
         FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
         assertThat(fs.getDirectories("/"), is(Arrays.asList(DIRECTORIES)));
+        for(String dir : DIRECTORIES) {
+            assertThat(fs.getDirectories(dir), is(Arrays.asList(INNER_DIRECTORIES)));
+        }
     }
 
     @Test
@@ -60,6 +63,9 @@ public class DirectoryApiTest {
 
         for(String dir : DIRECTORIES) {
             assertTrue(fs.isDirectory(dir));
+            for(String innerDir: INNER_DIRECTORIES) {
+                assertTrue(fs.exists(dir + "/" + innerDir));
+            }
         }
     }
 

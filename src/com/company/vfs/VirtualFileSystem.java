@@ -84,6 +84,11 @@ public class VirtualFileSystem implements FileSystem {
     }
 
     @Override
+    public boolean isFile(String path) throws IOException {
+        return fileSystemEntryManager.isFile(path);
+    }
+
+    @Override
     public void createDirectory(String path) throws IOException {
         fileSystemEntryManager.createDirectory(path);
     }

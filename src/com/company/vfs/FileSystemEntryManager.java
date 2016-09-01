@@ -102,6 +102,15 @@ class FileSystemEntryManager {
         return metadata != null && metadata.getType() == Type.Directory;
     }
 
+    boolean isFile(String path) throws IOException {
+        if(PathUtils.isRoot(path)) {
+            return false;
+        }
+
+        Metadata metadata = getMetadata(path);
+        return metadata != null && metadata.getType() == Type.File;
+    }
+
     OutputStream createFile(String path) throws IOException {
         if(PathUtils.isRoot(path)) {
             throw new FileAlreadyExistsException(path);
@@ -128,7 +137,7 @@ class FileSystemEntryManager {
             throw new FileAlreadyExistsException(path);
         }
 
-        Metadata fileMetadata = createFileSystemEntry(metadata, name, Type.Directory);
+        Metadata fileMetadata = createFileSystemEntry(metadata, name, Type.File);
         return new EntryOutputStream(fileMetadata, false);
     }
 
@@ -184,7 +193,7 @@ class FileSystemEntryManager {
 
         Metadata metadataToDelete = getEntryMetadata(entryToDelete.get());
         if(metadataToDelete.getType() == Type.Directory && metadataToDelete.getDataLength() > 0) {
-            throw new DirectoryNotEmptyException(pathTo);
+            throw new DirectoryNotEmptyException(path);
         }
 
         if(isOpened(metadataToDelete)) {

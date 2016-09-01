@@ -58,7 +58,7 @@ class MetadataManager {
 
     Metadata getMetadata(int metadataId) {
 
-        if(metadataId < 0) {
+        if(metadataId < 0 || metadataId >= maxEntries) {
             throw new IndexOutOfBoundsException();
         }
 
@@ -92,7 +92,7 @@ class MetadataManager {
         lock.writeLock().lock();
         try {
             int index = metadataMap.nextClearBit(0);
-            if (index > maxEntries) {
+            if (index >= maxEntries) {
                 throw new FileSystemEntriesLimitExceededException();
             }
 

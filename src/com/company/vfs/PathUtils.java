@@ -36,12 +36,4 @@ class PathUtils {
     static boolean isRoot(String path) {
         return path.isEmpty() || path.equals("/");
     }
-
-    static String normalize(String path) {
-        if(!path.startsWith("/")) {
-            return "/" + path;
-        }
-
-        return path;
-    }
 }

@@ -9,7 +9,7 @@ public class VirtualFileSystemException extends IOException {
 
     }
 
-    VirtualFileSystemException(String msg) {
+    public VirtualFileSystemException(String msg) {
         super(msg);
     }
 }

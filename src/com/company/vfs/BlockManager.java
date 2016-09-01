@@ -10,6 +10,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 class BlockManager {
 
+    private static final int NO_BLOCK = -1;
+
     private final int blockSize;
     private final int maxBlocks;
     private final ByteStorage byteStorage;
@@ -18,10 +20,10 @@ class BlockManager {
     private final BitSet blockMap;
     private final ReadWriteLock lock;
 
-    public BlockManager(int blockSize, int maxBlocks, ByteStorage byteStorage) throws IOException {
+    BlockManager(int blockSize, int maxBlocks, ByteStorage byteStorage) throws IOException {
         this.blockSize = blockSize;
         this.maxBlocks = maxBlocks;
-        this.byteStorage = byteStorage;
+        this.byteStorage = new SynchronizedByteStorage(byteStorage);
 
         this.blockMapOffset = 0;
         int blockMapLength = (maxBlocks + 7) / 8;
@@ -66,10 +68,58 @@ class BlockManager {
         }
     }
 
+    void truncateBlocksToSize(Metadata metadata) throws IOException {
+        lock.writeLock().lock();
+        try {
+
+            int currentBlock = metadata.getFirstBlock();
+            if(currentBlock < 0) {
+                return;
+            }
+
+            int size = metadata.getDataLength();
+            int maxBlocks = (size + blockSize - 1) / blockSize;
+
+            if(maxBlocks == 0) {
+                metadata.setFirstBlock(Metadata.NO_BLOCK);
+            }
+
+            int blockCount = 1;
+            while (currentBlock >= 0) {
+                int nextBlock = getNextBlock(currentBlock);
+
+                if(blockCount > maxBlocks) {
+                    setDeallocated(currentBlock);
+                }
+
+                currentBlock = nextBlock;
+                ++blockCount;
+            }
+        }
+        finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    void deallocateBlocks(Metadata metadata) throws IOException {
+        int currentBlock = metadata.getFirstBlock();
+        lock.writeLock().lock();
+        try {
+            while (currentBlock >= 0) {
+                int nextBlock = getNextBlock(currentBlock);
+                setDeallocated(currentBlock);
+                currentBlock = nextBlock;
+            }
+        }
+        finally {
+            lock.writeLock().unlock();
+        }
+    }
+
     private int getNthBlock(Metadata metadata, int blockNumber) throws IOException {
         int currentBlock = metadata.getFirstBlock();
-        int i = 0;
 
+        int i = 1;
         while(currentBlock >= 0 && i <= blockNumber) {
             currentBlock = getNextBlock(currentBlock);
             ++i;
@@ -80,13 +130,12 @@ class BlockManager {
 
     private int ensureNthBlock(Metadata metadata, int blockNumber) throws IOException {
         int currentBlock = metadata.getFirstBlock();
-        int i = 0;
-
         if(currentBlock < 0) {
             currentBlock = allocateBlock();
             metadata.setFirstBlock(currentBlock);
         }
 
+        int i = 1;
         while(i <= blockNumber) {
             int nextBlock = getNextBlock(currentBlock);
             if(nextBlock < 0) {
@@ -96,7 +145,7 @@ class BlockManager {
             ++i;
         }
 
-        return 0;
+        return currentBlock;
     }
 
     private int getNextBlock(int block) throws IOException {
@@ -106,17 +155,13 @@ class BlockManager {
 
     private int allocateBlock() throws IOException {
         int block = blockMap.nextClearBit(0);
-        blockMap.set(block);
-
         if(block >= maxBlocks) {
             throw new BlockLimitExceededException();
         }
 
-        // Set bit in storage
-        int byteOffset = blockMapOffset + block / 8;
-        byte mapByte = byteStorage.getByte(byteOffset);
-        mapByte |= 1 << (block % 8);
-        byteStorage.putByte(byteOffset, mapByte);
+        setAllocated(block);
+        int offset = blockTableOffset + block * 4;
+        byteStorage.putInt(offset, NO_BLOCK);
 
         return block;
     }
@@ -125,20 +170,20 @@ class BlockManager {
         int offset = blockTableOffset + block * 4;
         int allocatedBlock = allocateBlock();
         byteStorage.putInt(offset, allocatedBlock);
-        return 0;
+        return allocatedBlock;
     }
 
-    public static int size(int maxBlocks) {
+    static int size(int maxBlocks) {
         int blockMapLength = (maxBlocks + 7) / 8;
         int blockTableLength = maxBlocks * 4;
         return blockMapLength + blockTableLength;
     }
 
-    public int getMaxBlocks() {
+    int getMaxBlocks() {
         return maxBlocks;
     }
 
-    public int getBlockCount() {
+    int getBlockCount() {
         lock.readLock().lock();
         try {
             return blockMap.cardinality();
@@ -146,5 +191,21 @@ class BlockManager {
         finally {
             lock.readLock().unlock();
         }
+    }
+
+    private void setAllocated(int block) throws IOException {
+        blockMap.set(block);
+        int byteOffset = blockMapOffset + block / 8;
+        byte mapByte = byteStorage.getByte(byteOffset);
+        mapByte |= 1 << (block % 8);
+        byteStorage.putByte(byteOffset, mapByte);
+    }
+
+    private void setDeallocated(int block) throws IOException {
+        blockMap.clear(block);
+        int byteOffset = blockMapOffset + block / 8;
+        byte mapByte = byteStorage.getByte(byteOffset);
+        mapByte &= ~(1 << (block % 8));
+        byteStorage.putByte(byteOffset, mapByte);
     }
 }

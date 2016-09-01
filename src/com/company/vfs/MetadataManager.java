@@ -27,7 +27,7 @@ class MetadataManager {
 
         this.lock = new ReentrantReadWriteLock();
         this.maxEntries = maxEntries;
-        this.byteStorage = byteStorage;
+        this.byteStorage = new SynchronizedByteStorage(byteStorage);
         this.metadataMapOffset = 0;
 
         int metadataMapLength = (maxEntries + 7) / 8;
@@ -43,7 +43,7 @@ class MetadataManager {
         if(!metadataMap.get(0)) {
             setAllocated(0);
             this.root.setType(Type.Directory);
-            this.root.setFirstBlock(-1);
+            this.root.setFirstBlock(Metadata.NO_BLOCK);
         }
     }
 
@@ -101,10 +101,22 @@ class MetadataManager {
             MappedMetadata metadata = new MappedMetadata(index, byteStorage, metadataOffset);
             metadata.setType(type);
             metadata.setDataLength(0);
-            metadata.setFirstBlock(-1);
+            metadata.setFirstBlock(Metadata.NO_BLOCK);
 
             metadataCache.set(index, new WeakReference<>(metadata));
             return metadata;
+        }
+        finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    void deallocateMetadata(Metadata metadata) throws IOException {
+        lock.writeLock().lock();
+        try {
+            int index = metadata.getId();
+            setDeallocated(index);
+            metadataCache.set(index, null);
         }
         finally {
             lock.writeLock().unlock();
@@ -134,6 +146,15 @@ class MetadataManager {
         byteStorage.putByte(byteOffset, mapByte);
     }
 
+    private void setDeallocated(int index) throws IOException {
+        metadataMap.clear(index);
+        // Set bit in storage
+        int byteOffset = metadataMapOffset + index / 8;
+        byte mapByte = byteStorage.getByte(byteOffset);
+        mapByte &= ~(1 << (index % 8));
+        byteStorage.putByte(byteOffset, mapByte);
+    }
+
     private static class MappedMetadata implements Metadata {
 
         private static final int SIZE = 12;
@@ -160,8 +181,12 @@ class MetadataManager {
         }
 
         @Override
+        synchronized public void setDataLength(int length) throws IOException {
+            writeField(DATA_LENGTH_INDEX, length);
+        }
+
+        @Override
         synchronized public void updateDataLength(int length) throws IOException {
-            // TODO: check thread safety
             int dataLength = getDataLength();
             if(length > dataLength) {
                 writeField(DATA_LENGTH_INDEX, length);
@@ -190,10 +215,6 @@ class MetadataManager {
 
         synchronized private void setType(Type type) throws IOException {
             writeField(TYPE_INDEX, type.value);
-        }
-
-        synchronized private void setDataLength(int length) throws IOException {
-            writeField(DATA_LENGTH_INDEX, length);
         }
 
         private int offset() {

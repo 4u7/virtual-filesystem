@@ -67,7 +67,7 @@ public class MappedFileByteStorage implements ByteStorage {
         return new MappedFileByteStorage(path, this.offset + offset, length);
     }
 
-    public void ensureMapping() throws IOException {
+    private void ensureMapping() throws IOException {
         if(byteBuffer != null) {
             return;
         }
@@ -79,5 +79,10 @@ public class MappedFileByteStorage implements ByteStorage {
             }
             byteBuffer = channel.map(FileChannel.MapMode.READ_WRITE, offset, length);
         }
+    }
+
+    @Override
+    public void close() throws IOException {
+        
     }
 }

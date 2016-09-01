@@ -40,4 +40,9 @@ class SynchronizedByteStorage implements ByteStorage {
     public ByteStorage slice(int offset, int length) {
         return byteStorage.slice(offset, length);
     }
+
+    @Override
+    public void close() throws IOException {
+        byteStorage.close();
+    }
 }

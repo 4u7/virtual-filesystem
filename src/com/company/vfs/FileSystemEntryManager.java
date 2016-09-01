@@ -1,17 +1,12 @@
 package com.company.vfs;
 
 import com.company.vfs.Metadata.Type;
-import com.company.vfs.exception.FileAlreadyExistsException;
-import com.company.vfs.exception.NoSuchFileException;
-import com.company.vfs.exception.NotDirectoryException;
-import com.company.vfs.exception.NotFileException;
+import com.company.vfs.exception.*;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 class FileSystemEntryManager {
@@ -164,8 +159,38 @@ class FileSystemEntryManager {
         return new EntryInputStream(metadata, dataBlockStorage, blockManager);
     }
 
-    void delete(String path) {
-        // TODO: implemetation
+    void delete(String path) throws IOException {
+        if(PathUtils.isRoot(path)) {
+            throw new AccessDeniedException("Root directory can not be deleted.");
+        }
+
+        String name = PathUtils.getName(path);
+        String pathTo = PathUtils.getPathTo(path);
+
+        Metadata parentMetadata = getMetadata(pathTo);
+        if(parentMetadata == null || parentMetadata.getType() != Type.Directory) {
+            throw new NoSuchFileException(path);
+        }
+
+        List<FileSystemEntry> entries = readDirectoryContents(parentMetadata);
+        Optional<FileSystemEntry> entryToDelete = entries.stream()
+                .filter(e -> name.equals(e.getName()))
+                .findFirst();
+
+        if(!entryToDelete.isPresent()) {
+            throw new NoSuchFileException(path);
+        }
+
+        Metadata metadataToDelete = getEntryMetadata(entryToDelete.get());
+        if(metadataToDelete.getType() == Type.Directory && metadataToDelete.getDataLength() > 0) {
+            throw new DirectoryNotEmptyException(pathTo);
+        }
+
+        blockManager.deallocateBlocks(metadataToDelete);
+        metadataManager.deallocateMetadata(metadataToDelete);
+
+        entries.remove(entryToDelete.get());
+        writeDirectoryContents(parentMetadata, entries);
     }
 
     private Metadata createFileSystemEntry(Metadata metadata, String name, Type type) throws IOException {
@@ -214,6 +239,16 @@ class FileSystemEntryManager {
             }
         }
         return contents;
+    }
+
+    private void writeDirectoryContents(Metadata metadata, List<FileSystemEntry> entries) throws IOException {
+        metadata.setDataLength(0);
+        try(OutputStream outputStream = new EntryOutputStream(metadata, dataBlockStorage, blockManager, false)) {
+            for (FileSystemEntry entry : entries) {
+                entry.write(outputStream);
+            }
+        }
+        blockManager.truncateBlocksToSize(metadata);
     }
 
     private boolean isDirectory(FileSystemEntry entry) {

@@ -2,9 +2,13 @@ package com.company.vfs;
 
 import java.io.IOException;
 
-interface Metadata {
+public interface Metadata {
+
+    int NO_BLOCK = -1;
 
     int getDataLength() throws IOException;
+
+    void setDataLength(int length) throws IOException;
 
     void updateDataLength(int length) throws IOException;
 
@@ -16,7 +20,7 @@ interface Metadata {
 
     int getId();
 
-    public enum Type {
+    enum Type {
         Undefined(0),
         Directory(1),
         File(2);

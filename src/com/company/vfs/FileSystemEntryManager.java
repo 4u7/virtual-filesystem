@@ -3,10 +3,9 @@ package com.company.vfs;
 import com.company.vfs.Metadata.Type;
 import com.company.vfs.exception.*;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 class FileSystemEntryManager {
@@ -14,12 +13,14 @@ class FileSystemEntryManager {
     private final MetadataManager metadataManager;
     private final BlockManager blockManager;
     private final ByteStorage dataBlockStorage;
+    private final ConcurrentHashMap<Metadata, Integer> openedFiles;
 
     FileSystemEntryManager(MetadataManager metadataManager, BlockManager blockManager, ByteStorage dataBlockStorage) {
 
         this.metadataManager = metadataManager;
         this.blockManager = blockManager;
         this.dataBlockStorage = new SynchronizedByteStorage(dataBlockStorage);
+        this.openedFiles = new ConcurrentHashMap<>();
     }
 
     void createDirectory(String path) throws IOException {
@@ -128,7 +129,7 @@ class FileSystemEntryManager {
         }
 
         Metadata fileMetadata = createFileSystemEntry(metadata, name, Type.Directory);
-        return new EntryOutputStream(fileMetadata, dataBlockStorage, blockManager, false);
+        return new EntryOutputStream(fileMetadata, false);
     }
 
     OutputStream writeFile(String path, boolean append) throws IOException {
@@ -142,7 +143,7 @@ class FileSystemEntryManager {
             throw new NotFileException(path);
         }
 
-        return new EntryOutputStream(metadata, dataBlockStorage, blockManager, append);
+        return new EntryOutputStream(metadata, append);
     }
 
     InputStream readFile(String path) throws IOException {
@@ -156,7 +157,7 @@ class FileSystemEntryManager {
             throw new NotFileException(path);
         }
 
-        return new EntryInputStream(metadata, dataBlockStorage, blockManager);
+        return new EntryInputStream(metadata);
     }
 
     void delete(String path) throws IOException {
@@ -186,6 +187,10 @@ class FileSystemEntryManager {
             throw new DirectoryNotEmptyException(pathTo);
         }
 
+        if(isOpened(metadataToDelete)) {
+            throw new AccessDeniedException("Opened file can not be deleted.");
+        }
+
         blockManager.deallocateBlocks(metadataToDelete);
         metadataManager.deallocateMetadata(metadataToDelete);
 
@@ -193,13 +198,47 @@ class FileSystemEntryManager {
         writeDirectoryContents(parentMetadata, entries);
     }
 
+    private void openFile(Metadata metadata) {
+        boolean result = false;
+        while (!result) {
+            Integer timesOpened = openedFiles.get(metadata);
+            if(timesOpened == null) {
+                result = openedFiles.putIfAbsent(metadata, 1) == null;
+            }
+            else {
+                result = openedFiles.replace(metadata, timesOpened, timesOpened + 1);
+            }
+        }
+    }
+
+    private void closeFile(Metadata metadata) throws VirtualFileSystemException {
+
+        boolean result = false;
+        while (!result) {
+            Integer timesOpened = openedFiles.getOrDefault(metadata, 0);
+
+            if(timesOpened < 1) {
+                throw new VirtualFileSystemException("Attempt to close file which is not opened.");
+            }
+
+            if(timesOpened == 1) {
+                result = openedFiles.remove(metadata, timesOpened);
+            }
+            else
+            {
+                result = openedFiles.replace(metadata, timesOpened, timesOpened - 1);
+            }
+        }
+    }
+
+    private boolean isOpened(Metadata metadata) {
+        return openedFiles.containsKey(metadata);
+    }
+
     private Metadata createFileSystemEntry(Metadata metadata, String name, Type type) throws IOException {
 
-        // TODO: ensure thread safety
-
         Metadata entryMetadata = metadataManager.allocateMetadata(type);
-
-        try(OutputStream outputStream = new EntryOutputStream(metadata, dataBlockStorage, blockManager, true)) {
+        try(DataOutputStream outputStream = new DataOutputStream(new EntryOutputStream(metadata, true))) {
             FileSystemEntry entry = new FileSystemEntry(entryMetadata.getId(), name);
             entry.write(outputStream);
         }
@@ -233,7 +272,7 @@ class FileSystemEntryManager {
     private List<FileSystemEntry> readDirectoryContents(Metadata metadata) throws IOException {
         List<FileSystemEntry> contents = new ArrayList<>();
 
-        try(InputStream inputStream = new EntryInputStream(metadata, dataBlockStorage, blockManager)) {
+        try(DataInputStream inputStream = new DataInputStream(new EntryInputStream(metadata))) {
             while (inputStream.available() > 0) {
                 contents.add(FileSystemEntry.read(inputStream));
             }
@@ -243,7 +282,7 @@ class FileSystemEntryManager {
 
     private void writeDirectoryContents(Metadata metadata, List<FileSystemEntry> entries) throws IOException {
         metadata.setDataLength(0);
-        try(OutputStream outputStream = new EntryOutputStream(metadata, dataBlockStorage, blockManager, false)) {
+        try(DataOutputStream outputStream = new DataOutputStream(new EntryOutputStream(metadata, false))) {
             for (FileSystemEntry entry : entries) {
                 entry.write(outputStream);
             }
@@ -268,6 +307,91 @@ class FileSystemEntryManager {
         } catch (IOException e) {
             e.printStackTrace();
             return false;
+        }
+    }
+
+    private class EntryOutputStream extends OutputStream {
+
+        private final Metadata metadata;
+        private int position = 0;
+        private boolean closed = false;
+
+        EntryOutputStream(Metadata metadata, boolean append)
+                throws IOException {
+            this.metadata = metadata;
+
+            if(append) {
+                position = metadata.getDataLength();
+            }
+
+            openFile(metadata);
+        }
+
+        @Override
+        public void write(int b) throws IOException {
+
+            if(closed) {
+                throw new ClosedStreamException();
+            }
+
+            int offset = blockManager.ensureBlockOffset(metadata, position);
+            dataBlockStorage.putByte(offset, (byte)b);
+            ++position;
+
+            metadata.updateDataLength(position);
+        }
+
+        @Override
+        public void close() throws IOException {
+            super.close();
+            if(!closed) {
+                closeFile(metadata);
+                closed = true;
+            }
+        }
+    }
+
+    private class EntryInputStream extends InputStream {
+
+        private final Metadata metadata;
+        private int position = 0;
+        private boolean closed = false;
+
+        EntryInputStream(Metadata metadata) {
+            this.metadata = metadata;
+            openFile(metadata);
+        }
+
+        @Override
+        public int read() throws IOException {
+
+            if(closed) {
+                throw new ClosedStreamException();
+            }
+
+            if(position >= metadata.getDataLength()) {
+                return -1;
+            }
+
+            int offset = blockManager.getBlockOffset(metadata, position);
+            int result = dataBlockStorage.getByte(offset) & 0xFF;
+            ++position;
+
+            return result;
+        }
+
+        @Override
+        public int available() throws IOException {
+            return metadata.getDataLength() - position;
+        }
+
+        @Override
+        public void close() throws IOException {
+            super.close();
+            if(!closed) {
+                closeFile(metadata);
+                closed = true;
+            }
         }
     }
 }

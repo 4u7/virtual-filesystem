@@ -213,6 +213,19 @@ class MetadataManager {
             return id;
         }
 
+        @Override
+        public boolean equals(Object obj) {
+            return  obj != null &&
+                    obj instanceof Metadata &&
+                    id == ((Metadata) obj).getId();
+
+        }
+
+        @Override
+        public int hashCode() {
+            return Integer.hashCode(id);
+        }
+
         synchronized private void setType(Type type) throws IOException {
             writeField(TYPE_INDEX, type.value);
         }

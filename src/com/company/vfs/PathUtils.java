@@ -2,11 +2,10 @@ package com.company.vfs;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
-public class PathUtils {
-    public static String getName(String path) {
+class PathUtils {
+    static String getName(String path) {
         if(isRoot(path)) {
             return "";
         }
@@ -15,7 +14,7 @@ public class PathUtils {
         return path.substring(lastSlashIndex + 1);
     }
 
-    public static String getPathTo(String path) {
+    static String getPathTo(String path) {
         if(isRoot(path)) {
             return "";
         }
@@ -28,13 +27,21 @@ public class PathUtils {
         return path.substring(0, lastSlashIndex);
     }
 
-    public static List<String> getPathComponents(String path) {
+    static List<String> getPathComponents(String path) {
         return Arrays.stream(path.split("/"))
                 .filter(p -> !p.isEmpty())
                 .collect(Collectors.toList());
     }
 
-    public static boolean isRoot(String path) {
+    static boolean isRoot(String path) {
         return path.isEmpty() || path.equals("/");
+    }
+
+    static String normalize(String path) {
+        if(!path.startsWith("/")) {
+            return "/" + path;
+        }
+
+        return path;
     }
 }

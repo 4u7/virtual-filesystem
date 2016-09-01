@@ -84,7 +84,7 @@ class MetadataManager {
             return null;
         }
         finally {
-            lock.readLock().lock();
+            lock.readLock().unlock();
         }
     }
 

@@ -6,13 +6,18 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
-import static com.company.vfs.Utils.DIRECTORIES;
 import static com.company.vfs.Utils.FILESYSTEM_FILENAME;
 import static com.company.vfs.Utils.removeFilesystemFile;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.*;
 
 public class DirectoryApiTest {
+
+    private static final String[] DIRECTORIES = { "foo", "bar", "baz", "竜座" };
+
+    static final String[] INNER_DIRECTORIES = { "lorem ipsum dolor sit amet",
+            "Новая Папка 547", "hyvää huomenta", "คนอ้วน" };
+
     @Before
     public void setUp() throws Exception {
         FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME)
@@ -22,6 +27,9 @@ public class DirectoryApiTest {
 
         for(String dir : DIRECTORIES) {
             fs.createDirectory(dir);
+            for(String innerDir: INNER_DIRECTORIES) {
+                fs.createDirectory(dir + "/" + innerDir);
+            }
         }
     }
 

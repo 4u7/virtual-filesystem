@@ -2,6 +2,7 @@ package com.company.vfs;
 
 import com.company.vfs.exception.AccessDeniedException;
 import com.company.vfs.exception.DirectoryNotEmptyException;
+import com.company.vfs.exception.NoSuchFileException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -86,6 +87,12 @@ public class DeleteTest {
         FileSystem fs = VirtualFileSystem.open(FILESYSTEM_FILENAME);
         InputStream inputStream = fs.readFile("base.db");
         fs.delete("base.db");
+    }
+
+    @Test(expected = NoSuchFileException.class)
+    public void deleteShouldThrow_When_NoSuchFile() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(FILESYSTEM_FILENAME);
+        fs.delete("doesn't exist");
     }
 
     @After

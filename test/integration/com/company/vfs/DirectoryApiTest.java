@@ -1,5 +1,8 @@
 package com.company.vfs;
 
+import com.company.vfs.exception.FileAlreadyExistsException;
+import com.company.vfs.exception.NoSuchFileException;
+import com.company.vfs.exception.NotDirectoryException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -67,6 +70,32 @@ public class DirectoryApiTest {
                 assertTrue(fs.exists(dir + "/" + innerDir));
             }
         }
+    }
+
+    @Test(expected = NotDirectoryException.class)
+    public void getDirectoriesShouldThrow_When_TargetIsNotDirectory() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        fs.createFile("log.txt").close();
+        fs.getDirectories("log.txt");
+    }
+
+    @Test(expected = NotDirectoryException.class)
+    public void createDirectoryShouldThrow_When_TargetIsNotDirectory() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        fs.createFile("log.txt").close();
+        fs.createDirectory("log.txt/dir");
+    }
+
+    @Test(expected = NoSuchFileException.class)
+    public void createDirectoryShouldThrow_When_NoTarget() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        fs.createDirectory("/no/dir");
+    }
+
+    @Test(expected = FileAlreadyExistsException.class)
+    public void createDirectoryShouldThrow_When_AlreadyExists() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        fs.createDirectory("/foo");
     }
 
     @After

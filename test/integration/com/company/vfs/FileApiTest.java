@@ -1,6 +1,9 @@
 package com.company.vfs;
 
 import com.company.vfs.exception.FileAlreadyExistsException;
+import com.company.vfs.exception.NoSuchFileException;
+import com.company.vfs.exception.NotDirectoryException;
+import com.company.vfs.exception.NotFileException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -140,6 +143,44 @@ public class FileApiTest {
     public void createFileShouldThrow_When_TargetIsDirectory() throws Exception {
         FileSystem fs = VirtualFileSystem.open(FILESYSTEM_FILENAME);
         fs.createFile("foo");
+    }
+
+    @Test(expected = NotDirectoryException.class)
+    public void getFilesShouldThrow_When_TargetIsNotDirectory() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        fs.createFile("log.txt").close();
+        fs.getFiles("log.txt");
+    }
+
+    @Test(expected = NotDirectoryException.class)
+    public void createFileShouldThrow_When_TargetIsNotDirectory() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        fs.createFile("log.txt").close();
+        fs.createFile("log.txt/file");
+    }
+
+    @Test(expected = NotFileException.class)
+    public void readFileShouldThrow_When_TargetIsNotFile() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        fs.readFile("foo");
+    }
+
+    @Test(expected = NotFileException.class)
+    public void writeFileShouldThrow_When_TargetIsNotFile() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        fs.writeFile("foo", true);
+    }
+
+    @Test(expected = NoSuchFileException.class)
+    public void readFileShouldThrow_When_NoFile() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        fs.readFile("foo/nothing/file");
+    }
+
+    @Test(expected = NoSuchFileException.class)
+    public void writeFileShouldThrow_When_NoFile() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        fs.writeFile("foo/nothing/file", true);
     }
 
     @After

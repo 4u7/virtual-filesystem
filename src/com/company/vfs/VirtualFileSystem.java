@@ -34,6 +34,10 @@ public class VirtualFileSystem implements FileSystem {
     }
 
     public static VirtualFileSystem open(String path) throws IOException {
+        if(path == null) {
+            throw new IllegalArgumentException();
+        }
+
         File file = new File(path);
         if(!file.exists()) {
             throw new NoSuchFileException(path);
@@ -55,56 +59,89 @@ public class VirtualFileSystem implements FileSystem {
     }
 
     public static Builder create(String path) {
+        if(path == null) {
+            throw new IllegalArgumentException();
+        }
         return new Builder(path);
     }
 
     @Override
     public List<String> getDirectories(String path) throws IOException {
+        if(path == null) {
+            throw new IllegalArgumentException();
+        }
         return fileSystemEntryManager.getDirectories(path);
     }
 
     @Override
     public List<String> getFiles(String path) throws IOException {
+        if(path == null) {
+            throw new IllegalArgumentException();
+        }
         return fileSystemEntryManager.getFiles(path);
     }
 
     @Override
     public boolean exists(String path) throws IOException {
+        if(path == null) {
+            throw new IllegalArgumentException();
+        }
         return fileSystemEntryManager.exists(path);
     }
 
     @Override
     public void delete(String path) throws IOException {
+        if(path == null) {
+            throw new IllegalArgumentException();
+        }
         fileSystemEntryManager.delete(path);
     }
 
     @Override
     public boolean isDirectory(String path) throws IOException {
+        if(path == null) {
+            throw new IllegalArgumentException();
+        }
         return fileSystemEntryManager.isDirectory(path);
     }
 
     @Override
     public boolean isFile(String path) throws IOException {
+        if(path == null) {
+            throw new IllegalArgumentException();
+        }
         return fileSystemEntryManager.isFile(path);
     }
 
     @Override
     public void createDirectory(String path) throws IOException {
+        if(path == null) {
+            throw new IllegalArgumentException();
+        }
         fileSystemEntryManager.createDirectory(path);
     }
 
     @Override
     public OutputStream createFile(String path) throws IOException {
+        if(path == null) {
+            throw new IllegalArgumentException();
+        }
         return fileSystemEntryManager.createFile(path);
     }
 
     @Override
     public OutputStream writeFile(String path, boolean append) throws IOException {
+        if(path == null) {
+            throw new IllegalArgumentException();
+        }
         return fileSystemEntryManager.writeFile(path, append);
     }
 
     @Override
     public InputStream readFile(String path) throws IOException {
+        if(path == null) {
+            throw new IllegalArgumentException();
+        }
         return fileSystemEntryManager.readFile(path);
     }
 
@@ -116,7 +153,7 @@ public class VirtualFileSystem implements FileSystem {
         return metadataManager.getMaxEntries();
     }
 
-    public int getBlockCount() {
+    public int getBlocksCount() {
         return blockManager.getBlockCount();
     }
 
@@ -135,7 +172,7 @@ public class VirtualFileSystem implements FileSystem {
         private int maxBlocks = DEFAULT_MAX_BLOCKS;
         private final String path;
 
-        public Builder(String path) {
+        Builder(String path) {
             this.path = path;
         }
 

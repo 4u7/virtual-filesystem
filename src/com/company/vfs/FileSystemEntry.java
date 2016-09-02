@@ -24,13 +24,18 @@ class FileSystemEntry {
     }
 
     static FileSystemEntry read(DataInputStream dataInputStream) throws IOException {
-        int metadataId = dataInputStream.readInt();
-        int nameByteLength = dataInputStream.readInt();
-        byte nameBytes[] = new byte[nameByteLength];
-        if(dataInputStream.read(nameBytes) == -1) {
+        try {
+            int metadataId = dataInputStream.readInt();
+            int nameByteLength = dataInputStream.readInt();
+            byte nameBytes[] = new byte[nameByteLength];
+            if (dataInputStream.read(nameBytes) == -1) {
+                throw new FileFormatException("Invalid file system entry format.");
+            }
+            return new FileSystemEntry(metadataId, new String(nameBytes, "UTF-8"));
+        }
+        catch (EOFException e) {
             throw new FileFormatException("Invalid file system entry format.");
         }
-        return new FileSystemEntry(metadataId, new String(nameBytes, "UTF-8"));
     }
 
     void write(DataOutputStream dataOutputStream) throws IOException {

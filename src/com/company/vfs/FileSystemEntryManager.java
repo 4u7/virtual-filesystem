@@ -16,7 +16,7 @@ class FileSystemEntryManager {
     private final BlockManager blockManager;
     private final ByteStorage dataBlockStorage;
     private final ConcurrentHashMap<Metadata, Integer> openedFiles;
-    private final WeakHashMap<Metadata, ReadWriteLock> directoryLocks;
+    private final ReadWriteLock fileSystemStructureLock;
 
     FileSystemEntryManager(MetadataManager metadataManager, BlockManager blockManager, ByteStorage dataBlockStorage) {
 
@@ -24,7 +24,7 @@ class FileSystemEntryManager {
         this.blockManager = blockManager;
         this.dataBlockStorage = new SynchronizedByteStorage(dataBlockStorage);
         this.openedFiles = new ConcurrentHashMap<>();
-        this.directoryLocks = new WeakHashMap<>();
+        this.fileSystemStructureLock = new ReentrantReadWriteLock();
     }
 
     void createDirectory(String path) throws IOException {
@@ -33,86 +33,34 @@ class FileSystemEntryManager {
             throw new FileAlreadyExistsException(path);
         }
 
-        String name = PathUtils.getName(path);
-        String pathTo = PathUtils.getPathTo(path);
+        fileSystemStructureLock.writeLock().lock();
+        try {
+            String name = PathUtils.getName(path);
+            String pathTo = PathUtils.getPathTo(path);
 
-        Metadata metadata = getMetadata(pathTo);
+            Metadata metadata = getMetadata(pathTo);
 
-        if(metadata == null) {
-            throw new NoSuchFileException(pathTo);
+            if (metadata == null) {
+                throw new NoSuchFileException(pathTo);
+            }
+
+            if (metadata.getType() != Type.Directory) {
+                throw new NotDirectoryException(pathTo);
+            }
+
+            if (readDirectoryContents(metadata)
+                    .stream()
+                    .filter(e -> name.equals(e.getName()))
+                    .findFirst()
+                    .isPresent()) {
+                throw new FileAlreadyExistsException(path);
+            }
+
+            createFileSystemEntry(metadata, name, Type.Directory);
         }
-
-        if(metadata.getType() != Type.Directory) {
-            throw new NotDirectoryException(pathTo);
+        finally {
+            fileSystemStructureLock.writeLock().unlock();
         }
-
-        if(readDirectoryContents(metadata)
-                .stream()
-                .filter(e -> name.equals(e.getName()))
-                .findFirst()
-                .isPresent()) {
-            throw new FileAlreadyExistsException(path);
-        }
-
-        createFileSystemEntry(metadata, name, Type.Directory);
-    }
-
-    List<String> getDirectories(String path) throws IOException {
-        Metadata metadata = getMetadata(path);
-
-        if(metadata == null) {
-            throw new NoSuchFileException(path);
-        }
-
-        if(metadata.getType() != Type.Directory) {
-            throw new NotDirectoryException(path);
-        }
-
-        return readDirectoryContents(metadata)
-                .stream()
-                .filter(this::isDirectory)
-                .map(FileSystemEntry::getName)
-                .collect(Collectors.toList());
-    }
-
-    List<String> getFiles(String path) throws IOException {
-        Metadata metadata = getMetadata(path);
-
-        if(metadata == null) {
-            throw new NoSuchFileException(path);
-        }
-
-        if(metadata.getType() != Type.Directory) {
-            throw new NotDirectoryException(path);
-        }
-
-        return readDirectoryContents(metadata)
-                .stream()
-                .filter(this::isFile)
-                .map(FileSystemEntry::getName)
-                .collect(Collectors.toList());
-    }
-
-    boolean exists(String path) throws IOException {
-        return PathUtils.isRoot(path) || getMetadata(path) != null;
-    }
-
-    boolean isDirectory(String path) throws IOException {
-        if(PathUtils.isRoot(path)) {
-            return true;
-        }
-
-        Metadata metadata = getMetadata(path);
-        return metadata != null && metadata.getType() == Type.Directory;
-    }
-
-    boolean isFile(String path) throws IOException {
-        if(PathUtils.isRoot(path)) {
-            return false;
-        }
-
-        Metadata metadata = getMetadata(path);
-        return metadata != null && metadata.getType() == Type.File;
     }
 
     OutputStream createFile(String path) throws IOException {
@@ -120,57 +68,35 @@ class FileSystemEntryManager {
             throw new FileAlreadyExistsException(path);
         }
 
-        String name = PathUtils.getName(path);
-        String pathTo = PathUtils.getPathTo(path);
+        fileSystemStructureLock.writeLock().lock();
+        try {
+            String name = PathUtils.getName(path);
+            String pathTo = PathUtils.getPathTo(path);
 
-        Metadata metadata = getMetadata(pathTo);
+            Metadata metadata = getMetadata(pathTo);
 
-        if(metadata == null) {
-            throw new NoSuchFileException(pathTo);
+            if (metadata == null) {
+                throw new NoSuchFileException(pathTo);
+            }
+
+            if (metadata.getType() != Type.Directory) {
+                throw new NotDirectoryException(pathTo);
+            }
+
+            if (readDirectoryContents(metadata)
+                    .stream()
+                    .filter(e -> name.equals(e.getName()))
+                    .findFirst()
+                    .isPresent()) {
+                throw new FileAlreadyExistsException(path);
+            }
+
+            Metadata fileMetadata = createFileSystemEntry(metadata, name, Type.File);
+            return new EntryOutputStream(fileMetadata, false);
         }
-
-        if(metadata.getType() != Type.Directory) {
-            throw new NotDirectoryException(pathTo);
+        finally {
+            fileSystemStructureLock.writeLock().unlock();
         }
-
-        if(readDirectoryContents(metadata)
-                .stream()
-                .filter(e -> name.equals(e.getName()))
-                .findFirst()
-                .isPresent()) {
-            throw new FileAlreadyExistsException(path);
-        }
-
-        Metadata fileMetadata = createFileSystemEntry(metadata, name, Type.File);
-        return new EntryOutputStream(fileMetadata, false);
-    }
-
-    OutputStream writeFile(String path, boolean append) throws IOException {
-        Metadata metadata = getMetadata(path);
-
-        if(metadata == null) {
-            throw new NoSuchFileException(path);
-        }
-
-        if(metadata.getType() != Type.File) {
-            throw new NotFileException(path);
-        }
-
-        return new EntryOutputStream(metadata, append);
-    }
-
-    InputStream readFile(String path) throws IOException {
-        Metadata metadata = getMetadata(path);
-
-        if(metadata == null) {
-            throw new NoSuchFileException(path);
-        }
-
-        if(metadata.getType() != Type.File) {
-            throw new NotFileException(path);
-        }
-
-        return new EntryInputStream(metadata);
     }
 
     void delete(String path) throws IOException {
@@ -178,37 +104,171 @@ class FileSystemEntryManager {
             throw new AccessDeniedException("Root directory can not be deleted.");
         }
 
-        String name = PathUtils.getName(path);
-        String pathTo = PathUtils.getPathTo(path);
+        fileSystemStructureLock.writeLock().lock();
+        try {
+            String name = PathUtils.getName(path);
+            String pathTo = PathUtils.getPathTo(path);
 
-        Metadata parentMetadata = getMetadata(pathTo);
-        if(parentMetadata == null || parentMetadata.getType() != Type.Directory) {
-            throw new NoSuchFileException(path);
+            Metadata parentMetadata = getMetadata(pathTo);
+            if (parentMetadata == null || parentMetadata.getType() != Type.Directory) {
+                throw new NoSuchFileException(path);
+            }
+
+            List<FileSystemEntry> entries = readDirectoryContents(parentMetadata);
+            Optional<FileSystemEntry> entryToDelete = entries.stream()
+                    .filter(e -> name.equals(e.getName()))
+                    .findFirst();
+
+            if (!entryToDelete.isPresent()) {
+                throw new NoSuchFileException(path);
+            }
+
+            Metadata metadataToDelete = getEntryMetadata(entryToDelete.get());
+            if (metadataToDelete.getType() == Type.Directory && metadataToDelete.getDataLength() > 0) {
+                throw new DirectoryNotEmptyException(path);
+            }
+
+            if (isOpened(metadataToDelete)) {
+                throw new AccessDeniedException("Opened file can not be deleted.");
+            }
+
+            blockManager.deallocateBlocks(metadataToDelete);
+            metadataManager.deallocateMetadata(metadataToDelete);
+
+            entries.remove(entryToDelete.get());
+            writeDirectoryContents(parentMetadata, entries);
+        }
+        finally {
+            fileSystemStructureLock.writeLock().unlock();
+        }
+    }
+
+    List<String> getDirectories(String path) throws IOException {
+        fileSystemStructureLock.readLock().lock();
+        try {
+            Metadata metadata = getMetadata(path);
+
+            if (metadata == null) {
+                throw new NoSuchFileException(path);
+            }
+
+            if (metadata.getType() != Type.Directory) {
+                throw new NotDirectoryException(path);
+            }
+
+            return readDirectoryContents(metadata)
+                    .stream()
+                    .filter(this::isDirectory)
+                    .map(FileSystemEntry::getName)
+                    .collect(Collectors.toList());
+        }
+        finally {
+            fileSystemStructureLock.readLock().unlock();
+        }
+    }
+
+    List<String> getFiles(String path) throws IOException {
+        fileSystemStructureLock.readLock().lock();
+        try {
+            Metadata metadata = getMetadata(path);
+
+            if (metadata == null) {
+                throw new NoSuchFileException(path);
+            }
+
+            if (metadata.getType() != Type.Directory) {
+                throw new NotDirectoryException(path);
+            }
+
+            return readDirectoryContents(metadata)
+                    .stream()
+                    .filter(this::isFile)
+                    .map(FileSystemEntry::getName)
+                    .collect(Collectors.toList());
+        }
+        finally {
+            fileSystemStructureLock.readLock().unlock();
+        }
+    }
+
+    boolean exists(String path) throws IOException {
+        fileSystemStructureLock.readLock().lock();
+        try {
+            return PathUtils.isRoot(path) || getMetadata(path) != null;
+        }
+        finally {
+            fileSystemStructureLock.readLock().unlock();
+        }
+    }
+
+    boolean isDirectory(String path) throws IOException {
+        if(PathUtils.isRoot(path)) {
+            return true;
         }
 
-        List<FileSystemEntry> entries = readDirectoryContents(parentMetadata);
-        Optional<FileSystemEntry> entryToDelete = entries.stream()
-                .filter(e -> name.equals(e.getName()))
-                .findFirst();
+        fileSystemStructureLock.readLock().lock();
+        try {
+            Metadata metadata = getMetadata(path);
+            return metadata != null && metadata.getType() == Type.Directory;
+        }
+        finally {
+            fileSystemStructureLock.readLock().unlock();
+        }
+    }
 
-        if(!entryToDelete.isPresent()) {
-            throw new NoSuchFileException(path);
+    boolean isFile(String path) throws IOException {
+        if(PathUtils.isRoot(path)) {
+            return false;
         }
 
-        Metadata metadataToDelete = getEntryMetadata(entryToDelete.get());
-        if(metadataToDelete.getType() == Type.Directory && metadataToDelete.getDataLength() > 0) {
-            throw new DirectoryNotEmptyException(path);
+        fileSystemStructureLock.readLock().lock();
+        try {
+            Metadata metadata = getMetadata(path);
+            return metadata != null && metadata.getType() == Type.File;
         }
-
-        if(isOpened(metadataToDelete)) {
-            throw new AccessDeniedException("Opened file can not be deleted.");
+        finally {
+            fileSystemStructureLock.readLock().unlock();
         }
+    }
 
-        blockManager.deallocateBlocks(metadataToDelete);
-        metadataManager.deallocateMetadata(metadataToDelete);
+    OutputStream writeFile(String path, boolean append) throws IOException {
+        fileSystemStructureLock.readLock().lock();
+        try {
+            Metadata metadata = getMetadata(path);
 
-        entries.remove(entryToDelete.get());
-        writeDirectoryContents(parentMetadata, entries);
+            if (metadata == null) {
+                throw new NoSuchFileException(path);
+            }
+
+            if (metadata.getType() != Type.File) {
+                throw new NotFileException(path);
+            }
+
+            return new EntryOutputStream(metadata, append);
+        }
+        finally {
+            fileSystemStructureLock.readLock().unlock();
+        }
+    }
+
+    InputStream readFile(String path) throws IOException {
+        fileSystemStructureLock.readLock().lock();
+        try {
+            Metadata metadata = getMetadata(path);
+
+            if (metadata == null) {
+                throw new NoSuchFileException(path);
+            }
+
+            if (metadata.getType() != Type.File) {
+                throw new NotFileException(path);
+            }
+
+            return new EntryInputStream(metadata);
+        }
+        finally {
+            fileSystemStructureLock.readLock().unlock();
+        }
     }
 
     private void openFile(Metadata metadata) {
@@ -271,66 +331,33 @@ class FileSystemEntryManager {
         return metadataManager.getMetadata(fileSystemEntry.getMetadataId());
     }
 
-    private ReadWriteLock getDirectoryLock(Metadata metadata) {
-        synchronized (directoryLocks) {
-            if(directoryLocks.containsKey(metadata)) {
-                return directoryLocks.get(metadata);
-            }
-
-            ReadWriteLock lock = new ReentrantReadWriteLock();
-            directoryLocks.put(metadata, lock);
-            return lock;
-        }
-    }
-
     private Metadata createFileSystemEntry(Metadata metadata, String name, Type type) throws IOException {
-        ReadWriteLock lock = getDirectoryLock(metadata);
-        lock.writeLock().lock();
-        try {
-            Metadata entryMetadata = metadataManager.allocateMetadata(type);
-            try (DataOutputStream outputStream = new DataOutputStream(new EntryOutputStream(metadata, true))) {
-                FileSystemEntry entry = new FileSystemEntry(entryMetadata.getId(), name);
-                entry.write(outputStream);
-            }
-            return entryMetadata;
+        Metadata entryMetadata = metadataManager.allocateMetadata(type);
+        try (DataOutputStream outputStream = new DataOutputStream(new EntryOutputStream(metadata, true))) {
+            FileSystemEntry entry = new FileSystemEntry(entryMetadata.getId(), name);
+            entry.write(outputStream);
         }
-        finally {
-            lock.writeLock().unlock();
-        }
+        return entryMetadata;
     }
 
     private List<FileSystemEntry> readDirectoryContents(Metadata metadata) throws IOException {
-        ReadWriteLock lock = getDirectoryLock(metadata);
-        lock.readLock().lock();
-        try {
-            List<FileSystemEntry> contents = new ArrayList<>();
-            try (DataInputStream inputStream = new DataInputStream(new EntryInputStream(metadata))) {
-                while (inputStream.available() > 0) {
-                    contents.add(FileSystemEntry.read(inputStream));
-                }
+        List<FileSystemEntry> contents = new ArrayList<>();
+        try (DataInputStream inputStream = new DataInputStream(new EntryInputStream(metadata))) {
+            while (inputStream.available() > 0) {
+                contents.add(FileSystemEntry.read(inputStream));
             }
-            return contents;
         }
-        finally {
-            lock.readLock().unlock();
-        }
+        return contents;
     }
 
     private void writeDirectoryContents(Metadata metadata, List<FileSystemEntry> entries) throws IOException {
-        ReadWriteLock lock = getDirectoryLock(metadata);
-        lock.writeLock().lock();
-        try {
-            metadata.setDataLength(0);
-            try (DataOutputStream outputStream = new DataOutputStream(new EntryOutputStream(metadata, false))) {
-                for (FileSystemEntry entry : entries) {
-                    entry.write(outputStream);
-                }
+        metadata.setDataLength(0);
+        try (DataOutputStream outputStream = new DataOutputStream(new EntryOutputStream(metadata, false))) {
+            for (FileSystemEntry entry : entries) {
+                entry.write(outputStream);
             }
-            blockManager.truncateBlocksToSize(metadata);
         }
-        finally {
-            lock.writeLock().unlock();
-        }
+        blockManager.truncateBlocksToSize(metadata);
     }
 
     private boolean isDirectory(FileSystemEntry entry) {

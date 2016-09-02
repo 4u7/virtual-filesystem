@@ -23,6 +23,8 @@ public class DirectoryApiTest {
 
     @Before
     public void setUp() throws Exception {
+        removeFilesystemFile();
+
         FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME)
                 .maxBlocks(1024)
                 .maxEntries(1024)
@@ -54,6 +56,9 @@ public class DirectoryApiTest {
 
         for(String dir : DIRECTORIES) {
             assertTrue(fs.exists(dir));
+            for(String innerDir: INNER_DIRECTORIES) {
+                assertTrue(fs.exists(dir + "/" + innerDir));
+            }
         }
     }
 
@@ -67,7 +72,7 @@ public class DirectoryApiTest {
         for(String dir : DIRECTORIES) {
             assertTrue(fs.isDirectory(dir));
             for(String innerDir: INNER_DIRECTORIES) {
-                assertTrue(fs.exists(dir + "/" + innerDir));
+                assertTrue(fs.isDirectory(dir + "/" + innerDir));
             }
         }
     }

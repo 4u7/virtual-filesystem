@@ -7,10 +7,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static com.company.vfs.Utils.FILESYSTEM_FILENAME;
@@ -20,9 +17,11 @@ import static org.junit.Assert.*;
 
 public class ConcurrencyTest {
 
+    private volatile boolean finishedCreating;
+
     @Before
     public void setUp() throws Exception {
-
+        removeFilesystemFile();
     }
 
     @Test
@@ -33,18 +32,20 @@ public class ConcurrencyTest {
                 .build();
 
         fs.createDirectory("foo");
+        int numberOfThreads = 5;
+        int numberOfItems = 2000;
 
         ArrayList<Thread> threads = new ArrayList<>();
         Set<String> testDirectories = new HashSet<>();
 
         ConcurrentLinkedQueue<String> queue = new ConcurrentLinkedQueue<>();
-        for(int i = 0; i < 1000; ++i) {
+        for(int i = 0; i < numberOfItems; ++i) {
             String directory = "foo/" + Integer.toString(i);
             testDirectories.add(Integer.toString(i));
             queue.add(directory);
         }
 
-        for(int i = 0; i < 5; ++i) {
+        for(int i = 0; i < numberOfThreads; ++i) {
             Thread thread = new Thread(() -> {
                 try {
                     while (!queue.isEmpty()) {
@@ -67,18 +68,19 @@ public class ConcurrencyTest {
             try {
                 while(!queue.isEmpty()) {
                     fs.getDirectories("/foo");
-                    Thread.sleep(1);
                 }
-            } catch (IOException | InterruptedException e) {
+            } catch (IOException e) {
                 e.printStackTrace();
                 fail();
             }
         });
-        readerThread.run();
+
+        readerThread.start();
 
         for(Thread t: threads) {
             t.join();
         }
+
         readerThread.join();
 
         assertThat(new HashSet<>(fs.getDirectories("/foo")), is(testDirectories));
@@ -129,22 +131,25 @@ public class ConcurrencyTest {
     }
 
     @Test
-    public void createAndDelete() throws Exception {
-        FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME)
+    public void createAndDeleteDirectory() throws Exception {
+        VirtualFileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME)
                 .maxBlocks(4096)
                 .maxEntries(4096)
                 .build();
+
+        int numberOfThreads = 5;
+        int numberOfItems = 1000;
 
         ArrayList<Thread> threads = new ArrayList<>();
 
         ConcurrentLinkedQueue<String> addQueue = new ConcurrentLinkedQueue<>();
         ConcurrentLinkedQueue<String> deleteQueue = new ConcurrentLinkedQueue<>();
-        for(int i = 0; i < 1000; ++i) {
+        for(int i = 0; i < numberOfItems; ++i) {
             String directory = Integer.toString(i);
             addQueue.add(directory);
         }
 
-        for(int i = 0; i < 5; ++i) {
+        for(int i = 0; i < numberOfThreads; ++i) {
             Thread thread = new Thread(() -> {
                 try {
                     while (!addQueue.isEmpty()) {
@@ -164,9 +169,10 @@ public class ConcurrencyTest {
             thread.start();
         }
 
+        finishedCreating = false;
         Thread deleterThread = new Thread(() -> {
             try {
-                while(!deleteQueue.isEmpty()) {
+                while(!(finishedCreating && deleteQueue.isEmpty())) {
                     String name = deleteQueue.poll();
                     if(name != null) {
                         fs.delete(name);
@@ -177,13 +183,99 @@ public class ConcurrencyTest {
                 fail();
             }
         });
-        deleterThread.run();
+
+        deleterThread.start();
 
         for(Thread t: threads) {
             t.join();
         }
 
+        finishedCreating = true;
         deleterThread.join();
+
+        assertThat(fs.getDirectories("/"), is(Collections.emptyList()));
+        assertThat(fs.getEntriesCount(), is(1));
+        assertThat(fs.getBlocksCount(), is(0));
+    }
+
+    @Test
+    public void createDirectoryAndWriteFiles() throws Exception {
+        FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME)
+                .maxBlocks(4096)
+                .maxEntries(4096)
+                .build();
+
+        fs.createDirectory("foo");
+        int numberOfThreads = 5;
+        int numberOfItems = 2000;
+
+        ArrayList<Thread> directoryThreads = new ArrayList<>();
+        ArrayList<Thread> fileThreads = new ArrayList<>();
+        Set<String> testDirectories = new HashSet<>();
+
+        byte[] data = "data".getBytes();
+        int writeTimes = 30000;
+
+        ConcurrentLinkedQueue<String> queue = new ConcurrentLinkedQueue<>();
+        for(int i = 0; i < numberOfItems; ++i) {
+            String directory = "foo/" + Integer.toString(i);
+            testDirectories.add(Integer.toString(i));
+            queue.add(directory);
+        }
+
+        for(int i = 0; i < numberOfThreads; ++i) {
+            Thread directoryThread = new Thread(() -> {
+                try {
+                    while (!queue.isEmpty()) {
+                        String name = queue.poll();
+                        if(name != null) {
+                            fs.createDirectory(name);
+                        }
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    fail();
+                }
+            });
+
+            String filename = "data" + i;
+            Thread fileThread = new Thread(() -> {
+                try (OutputStream outputStream = fs.createFile(filename)){
+                    for(int j = 0; j < writeTimes; ++j) {
+                        outputStream.write(data);
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    fail();
+                }
+            });
+
+            fileThreads.add(fileThread);
+            fileThread.start();
+
+            directoryThreads.add(directoryThread);
+            directoryThread.start();
+        }
+
+        for(Thread t: fileThreads) {
+            t.join();
+        }
+
+        for(Thread t: directoryThreads) {
+            t.join();
+        }
+
+        assertThat(new HashSet<>(fs.getDirectories("/foo")), is(testDirectories));
+
+        for(int i = 0; i < numberOfThreads; ++i) {
+            try(InputStream inputStream = fs.readFile("data" + i)) {
+                assertThat(inputStream.available(), is(writeTimes * data.length));
+                byte buff[] = new byte[data.length];
+                while (inputStream.read(buff) > 0) {
+                    assertThat(buff, is(data));
+                }
+            }
+        }
     }
 
     @After

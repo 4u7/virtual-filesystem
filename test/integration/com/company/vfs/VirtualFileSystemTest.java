@@ -12,6 +12,8 @@ public class VirtualFileSystemTest {
 
     @Before
     public void setUp() throws Exception {
+        removeFilesystemFile();
+
         FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME)
                 .maxBlocks(1024)
                 .maxEntries(1024)

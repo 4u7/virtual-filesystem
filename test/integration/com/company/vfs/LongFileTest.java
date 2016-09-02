@@ -1,6 +1,7 @@
 package com.company.vfs;
 
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.*;
@@ -11,6 +12,11 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.*;
 
 public class LongFileTest {
+
+    @Before
+    public void setUp() throws Exception {
+        removeFilesystemFile();
+    }
 
     @Test
     public void longFileWriteReadTest() throws Exception {

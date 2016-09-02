@@ -1,6 +1,6 @@
 package com.company.vfs;
 
-import com.company.vfs.exception.FileFormatException;
+import com.company.vfs.exception.*;
 
 import java.io.*;
 import java.nio.file.FileAlreadyExistsException;

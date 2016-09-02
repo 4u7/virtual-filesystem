@@ -48,9 +48,4 @@ public class ByteBufferByteStorage implements ByteStorage {
         buffer.flip();
         return result;
     }
-
-    @Override
-    public void close() throws IOException {
-
-    }
 }

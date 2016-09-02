@@ -1,9 +1,8 @@
 package com.company.vfs;
 
-import java.io.Closeable;
 import java.io.IOException;
 
-interface ByteStorage extends Closeable {
+interface ByteStorage {
 
     void putByte(int offset, byte value) throws IOException;
 

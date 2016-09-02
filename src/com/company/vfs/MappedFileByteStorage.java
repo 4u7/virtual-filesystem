@@ -80,9 +80,4 @@ public class MappedFileByteStorage implements ByteStorage {
             byteBuffer = channel.map(FileChannel.MapMode.READ_WRITE, offset, length);
         }
     }
-
-    @Override
-    public void close() throws IOException {
-        
-    }
 }

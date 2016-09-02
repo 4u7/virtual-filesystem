@@ -11,6 +11,7 @@ import java.util.Arrays;
 import static com.company.vfs.Utils.FILESYSTEM_FILENAME;
 import static com.company.vfs.Utils.removeFilesystemFile;
 import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -117,6 +118,7 @@ public class FileApiTest {
         FileSystem fs = VirtualFileSystem.open(FILESYSTEM_FILENAME);
         fs.createFile("log.txt").close();
 
+        assertFalse(fs.isFile("/"));
         assertTrue(fs.isFile("/foo/Новая Папка 547/quine.cpp"));
         assertTrue(fs.isFile("/log.txt"));
         assertTrue(fs.isFile("/base.db"));
@@ -151,11 +153,29 @@ public class FileApiTest {
         fs.getFiles("log.txt");
     }
 
+    @Test(expected = NoSuchFileException.class)
+    public void getFilesShouldThrow_When_NoParent() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        fs.getFiles("nothing/log.txt");
+    }
+
     @Test(expected = NotDirectoryException.class)
     public void createFileShouldThrow_When_TargetIsNotDirectory() throws Exception {
         FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
         fs.createFile("log.txt").close();
         fs.createFile("log.txt/file");
+    }
+
+    @Test(expected = NoSuchFileException.class)
+    public void createFileShouldThrow_When_NoTargetDirectory() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        fs.createFile("nothing/file");
+    }
+
+    @Test(expected = FileAlreadyExistsException.class)
+    public void createFileShouldThrow_When_TargetIsRoot() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        fs.createFile("/");
     }
 
     @Test(expected = NotFileException.class)

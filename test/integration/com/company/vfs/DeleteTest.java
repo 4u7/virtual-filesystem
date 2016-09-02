@@ -96,6 +96,12 @@ public class DeleteTest {
         fs.delete("doesn't exist");
     }
 
+    @Test(expected = NoSuchFileException.class)
+    public void deleteShouldThrow_When_NoParent() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(FILESYSTEM_FILENAME);
+        fs.delete("nothing/doesn't exist");
+    }
+
     @After
     public void tearDown() throws Exception {
         removeFilesystemFile();

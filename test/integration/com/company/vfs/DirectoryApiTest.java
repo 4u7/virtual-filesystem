@@ -84,6 +84,12 @@ public class DirectoryApiTest {
         fs.getDirectories("log.txt");
     }
 
+    @Test(expected = NoSuchFileException.class)
+    public void getDirectoriesShouldThrow_When_NoParent() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        fs.getDirectories("nothing/log.txt");
+    }
+
     @Test(expected = NotDirectoryException.class)
     public void createDirectoryShouldThrow_When_TargetIsNotDirectory() throws Exception {
         FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
@@ -101,6 +107,12 @@ public class DirectoryApiTest {
     public void createDirectoryShouldThrow_When_AlreadyExists() throws Exception {
         FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
         fs.createDirectory("/foo");
+    }
+
+    @Test(expected = FileAlreadyExistsException.class)
+    public void createDirectoryShouldThrow_When_TargetIsRoot() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        fs.createDirectory("/");
     }
 
     @After

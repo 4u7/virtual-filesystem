@@ -138,7 +138,7 @@ public class ConcurrencyTest {
                 .build();
 
         int numberOfThreads = 5;
-        int numberOfItems = 1000;
+        int numberOfItems = 800;
 
         ArrayList<Thread> threads = new ArrayList<>();
 

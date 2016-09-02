@@ -45,7 +45,7 @@ public class ByteBufferByteStorage implements ByteStorage {
     public ByteStorage slice(int offset, int length) {
         buffer.position(offset);
         ByteStorage result =  new ByteBufferByteStorage(buffer.slice());
-        buffer.flip();
+        buffer.position(0);
         return result;
     }
 }

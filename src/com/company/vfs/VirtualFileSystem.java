@@ -35,7 +35,7 @@ public class VirtualFileSystem implements FileSystem {
 
     public static VirtualFileSystem open(String path) throws IOException {
         if(path == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("path parameter can't be null.");
         }
 
         File file = new File(path);
@@ -60,7 +60,7 @@ public class VirtualFileSystem implements FileSystem {
 
     public static Builder create(String path) {
         if(path == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("path parameter can't be null.");
         }
         return new Builder(path);
     }
@@ -68,7 +68,7 @@ public class VirtualFileSystem implements FileSystem {
     @Override
     public List<String> getDirectories(String path) throws IOException {
         if(path == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("path parameter can't be null.");
         }
         return fileSystemEntryManager.getDirectories(path);
     }
@@ -76,7 +76,7 @@ public class VirtualFileSystem implements FileSystem {
     @Override
     public List<String> getFiles(String path) throws IOException {
         if(path == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("path parameter can't be null.");
         }
         return fileSystemEntryManager.getFiles(path);
     }
@@ -84,7 +84,7 @@ public class VirtualFileSystem implements FileSystem {
     @Override
     public boolean exists(String path) throws IOException {
         if(path == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("path parameter can't be null.");
         }
         return fileSystemEntryManager.exists(path);
     }
@@ -92,7 +92,7 @@ public class VirtualFileSystem implements FileSystem {
     @Override
     public void delete(String path) throws IOException {
         if(path == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("path parameter can't be null.");
         }
         fileSystemEntryManager.delete(path);
     }
@@ -100,7 +100,7 @@ public class VirtualFileSystem implements FileSystem {
     @Override
     public boolean isDirectory(String path) throws IOException {
         if(path == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("path parameter can't be null.");
         }
         return fileSystemEntryManager.isDirectory(path);
     }
@@ -108,7 +108,7 @@ public class VirtualFileSystem implements FileSystem {
     @Override
     public boolean isFile(String path) throws IOException {
         if(path == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("path parameter can't be null.");
         }
         return fileSystemEntryManager.isFile(path);
     }
@@ -116,7 +116,7 @@ public class VirtualFileSystem implements FileSystem {
     @Override
     public void createDirectory(String path) throws IOException {
         if(path == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("path parameter can't be null.");
         }
         fileSystemEntryManager.createDirectory(path);
     }
@@ -124,7 +124,7 @@ public class VirtualFileSystem implements FileSystem {
     @Override
     public OutputStream createFile(String path) throws IOException {
         if(path == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("path parameter can't be null.");
         }
         return fileSystemEntryManager.createFile(path);
     }
@@ -132,7 +132,7 @@ public class VirtualFileSystem implements FileSystem {
     @Override
     public OutputStream writeFile(String path, boolean append) throws IOException {
         if(path == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("path parameter can't be null.");
         }
         return fileSystemEntryManager.writeFile(path, append);
     }
@@ -140,7 +140,7 @@ public class VirtualFileSystem implements FileSystem {
     @Override
     public InputStream readFile(String path) throws IOException {
         if(path == null) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException("path parameter can't be null.");
         }
         return fileSystemEntryManager.readFile(path);
     }

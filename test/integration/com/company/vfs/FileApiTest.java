@@ -1,9 +1,6 @@
 package com.company.vfs;
 
-import com.company.vfs.exception.FileAlreadyExistsException;
-import com.company.vfs.exception.NoSuchFileException;
-import com.company.vfs.exception.NotDirectoryException;
-import com.company.vfs.exception.NotFileException;
+import com.company.vfs.exception.*;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -183,6 +180,22 @@ public class FileApiTest {
     public void writeFileShouldThrow_When_NoFile() throws Exception {
         FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
         fs.writeFile("foo/nothing/file", true);
+    }
+
+    @Test(expected = ClosedStreamException.class)
+    public void writingToClosedStreamShouldThrow() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        OutputStream outputStream = fs.writeFile("base.db", true);
+        outputStream.close();
+        outputStream.write(42);
+    }
+
+    @Test(expected = ClosedStreamException.class)
+    public void readingFromClosedStreamShouldThrow() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        InputStream inputStream = fs.readFile("base.db");
+        inputStream.close();
+        inputStream.read();
     }
 
     @After

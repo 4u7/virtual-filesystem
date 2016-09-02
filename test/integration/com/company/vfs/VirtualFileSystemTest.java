@@ -14,7 +14,7 @@ public class VirtualFileSystemTest {
     public void setUp() throws Exception {
         removeFilesystemFile();
 
-        FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME)
+        VirtualFileSystem.create(FILESYSTEM_FILENAME)
                 .maxBlocks(1024)
                 .maxEntries(1024)
                 .build();
@@ -22,18 +22,17 @@ public class VirtualFileSystemTest {
 
     @Test
     public void exists() throws Exception {
-        FileSystem fs;
 
-        fs = VirtualFileSystem.open(FILESYSTEM_FILENAME);
-        fs.createFile("log.txt");
-        fs.createDirectory("foo");
-        fs.createFile("foo/log.txt");
+        FileSystem fs1 = VirtualFileSystem.open(FILESYSTEM_FILENAME);
+        fs1.createFile("log.txt");
+        fs1.createDirectory("foo");
+        fs1.createFile("foo/log.txt");
 
-        fs = VirtualFileSystem.open(FILESYSTEM_FILENAME);
-        assertTrue(fs.exists("log.txt"));
-        assertTrue(fs.exists("foo"));
-        assertTrue(fs.exists("foo/log.txt"));
-        assertTrue(fs.isDirectory("foo"));
+        FileSystem fs2 = VirtualFileSystem.open(FILESYSTEM_FILENAME);
+        assertTrue(fs2.exists("log.txt"));
+        assertTrue(fs2.exists("foo"));
+        assertTrue(fs2.exists("foo/log.txt"));
+        assertTrue(fs2.isDirectory("foo"));
     }
 
     @After

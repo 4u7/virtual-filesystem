@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="VirtualFileSystem:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/VirtualFileSystem_jar</output-path>
+    <root id="archive" name="VirtualFileSystem.jar">
+      <element id="module-output" name="VirtualFileSystem" />
+    </root>
+  </artifact>
+</component>

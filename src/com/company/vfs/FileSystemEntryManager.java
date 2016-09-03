@@ -162,6 +162,9 @@ class FileSystemEntryManager {
                     .map(FileSystemEntry::getName)
                     .collect(Collectors.toList());
         }
+        catch (UncheckedIOException e) {
+            throw e.getCause();
+        }
         finally {
             fileSystemStructureLock.readLock().unlock();
         }
@@ -185,6 +188,9 @@ class FileSystemEntryManager {
                     .filter(this::isFile)
                     .map(FileSystemEntry::getName)
                     .collect(Collectors.toList());
+        }
+        catch (UncheckedIOException e) {
+            throw e.getCause();
         }
         finally {
             fileSystemStructureLock.readLock().unlock();
@@ -365,8 +371,7 @@ class FileSystemEntryManager {
             Metadata entryMetadata =  metadataManager.getMetadata(entry.getMetadataId());
             return entryMetadata.getType() == Type.Directory;
         } catch (IOException e) {
-            e.printStackTrace();
-            return false;
+            throw new UncheckedIOException(e);
         }
     }
 
@@ -375,8 +380,7 @@ class FileSystemEntryManager {
             Metadata entryMetadata =  metadataManager.getMetadata(entry.getMetadataId());
             return entryMetadata.getType() == Type.File;
         } catch (IOException e) {
-            e.printStackTrace();
-            return false;
+            throw new UncheckedIOException(e);
         }
     }
 

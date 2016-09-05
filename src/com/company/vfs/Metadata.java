@@ -2,7 +2,7 @@ package com.company.vfs;
 
 import java.io.IOException;
 
-public interface Metadata {
+interface Metadata {
 
     int NO_BLOCK = -1;
 
@@ -10,13 +10,13 @@ public interface Metadata {
 
     void setDataLength(int length) throws IOException;
 
-    void updateDataLength(int length) throws IOException;
-
     int getFirstBlock() throws IOException;
 
     void setFirstBlock(int block) throws IOException;
 
     Type getType() throws IOException;
+
+    void setType(Type type) throws IOException;
 
     int getId();
 

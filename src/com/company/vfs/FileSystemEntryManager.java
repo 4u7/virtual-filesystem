@@ -416,18 +416,22 @@ class FileSystemEntryManager {
                 throw new ClosedStreamException();
             }
 
-            int firstBlock = metadata.getFirstBlock();
-            if(firstBlock < 0) {
-                // TODO: thread safety
-                firstBlock = blockManager.allocateFirstBlock();
-                metadata.setFirstBlock(firstBlock);
+            synchronized (metadata) {
+                int firstBlock = metadata.getFirstBlock();
+                if (firstBlock < 0) {
+                    firstBlock = blockManager.allocateFirstBlock();
+                    metadata.setFirstBlock(firstBlock);
+                }
+
+                int offset = blockManager.ensureGlobalOffset(firstBlock, position);
+                dataBlockStorage.putByte(offset, (byte) b);
+
+                ++position;
+                int dataLength = metadata.getDataLength();
+                if(position > dataLength) {
+                    metadata.setDataLength(position);
+                }
             }
-
-            int offset = blockManager.ensureGlobalOffset(firstBlock, position);
-            dataBlockStorage.putByte(offset, (byte) b);
-
-            ++position;
-            metadata.updateDataLength(position);
         }
 
         @Override

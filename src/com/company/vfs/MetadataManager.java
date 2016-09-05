@@ -176,36 +176,33 @@ class MetadataManager {
         }
 
         @Override
-        synchronized public int getDataLength() throws IOException {
+        public int getDataLength() throws IOException {
             return readField(DATA_LENGTH_INDEX);
         }
 
         @Override
-        synchronized public void setDataLength(int length) throws IOException {
+        public void setDataLength(int length) throws IOException {
             writeField(DATA_LENGTH_INDEX, length);
         }
 
         @Override
-        synchronized public void updateDataLength(int length) throws IOException {
-            int dataLength = getDataLength();
-            if(length > dataLength) {
-                writeField(DATA_LENGTH_INDEX, length);
-            }
-        }
-
-        @Override
-        synchronized public int getFirstBlock() throws IOException {
+        public int getFirstBlock() throws IOException {
             return readField(FIRST_BLOCK_INDEX);
         }
 
         @Override
-        synchronized public void setFirstBlock(int block) throws IOException {
+        public void setFirstBlock(int block) throws IOException {
             writeField(FIRST_BLOCK_INDEX, block);
         }
 
         @Override
-        synchronized public Type getType() throws IOException {
+        public Type getType() throws IOException {
             return Type.valueOf(readField(TYPE_INDEX));
+        }
+
+        @Override
+        public void setType(Type type) throws IOException {
+            writeField(TYPE_INDEX, type.value);
         }
 
         @Override
@@ -224,10 +221,6 @@ class MetadataManager {
         @Override
         public int hashCode() {
             return Integer.hashCode(id);
-        }
-
-        synchronized private void setType(Type type) throws IOException {
-            writeField(TYPE_INDEX, type.value);
         }
 
         private int offset() {

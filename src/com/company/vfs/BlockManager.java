@@ -15,15 +15,17 @@ class BlockManager {
     private final int blockSize;
     private final int maxBlocks;
     private final ByteStorage byteStorage;
+    private final ByteStorage dataBlocksStorage;
     private final int blockMapOffset;
     private final int blockTableOffset;
     private final BitSet blockMap;
     private final ReadWriteLock lock;
 
-    BlockManager(int blockSize, int maxBlocks, ByteStorage byteStorage) throws IOException {
+    BlockManager(int blockSize, int maxBlocks, ByteStorage byteStorage, ByteStorage dataBlocksStorage) throws IOException {
         this.blockSize = blockSize;
         this.maxBlocks = maxBlocks;
-        this.byteStorage = new SynchronizedByteStorage(byteStorage);
+        this.byteStorage = byteStorage;
+        this.dataBlocksStorage = dataBlocksStorage;
 
         this.blockMapOffset = 0;
         int blockMapLength = (maxBlocks + 7) / 8;
@@ -164,6 +166,10 @@ class BlockManager {
         setAllocated(block);
         int offset = blockTableOffset + block * 4;
         byteStorage.putInt(offset, NO_BLOCK);
+
+        // fill allocated block with zeros
+        byte zeros[] = new byte[blockSize];
+        dataBlocksStorage.putBytes(blockSize * block, zeros);
 
         return block;
     }

@@ -20,10 +20,7 @@ public class LongFileTest {
 
     @Test
     public void longFileWriteReadTest() throws Exception {
-        FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME)
-                .maxBlocks(1024)
-                .maxEntries(1024)
-                .build();
+        FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME, 1024);
 
 
         try(OutputStream outputStream = fs.createFile("huge.txt");
@@ -33,6 +30,7 @@ public class LongFileTest {
             for(int i = 0; i < 100000; ++i) {
                 writer.write("line of text");
                 writer.newLine();
+                writer.flush();
             }
         }
 
@@ -40,6 +38,8 @@ public class LongFileTest {
         try(InputStream inputStream = fs.readFile("huge.txt");
             InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
             BufferedReader reader = new BufferedReader(inputStreamReader)) {
+
+            assertThat(inputStream.available(), is("line of text\n".getBytes().length * 100000));
 
             for(int i = 0; i < 100000; ++i) {
                 assertThat(reader.readLine(), is("line of text"));

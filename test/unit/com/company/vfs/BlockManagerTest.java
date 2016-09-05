@@ -13,7 +13,8 @@ public class BlockManagerTest {
     @Test(expected = IndexOutOfBoundsException.class)
     public void getBlockOffsetShouldThrow_When_NoBlocks() throws Exception {
         ByteStorage storage = new ByteBufferByteStorage(ByteBuffer.allocate(BlockManager.size(8)));
-        BlockManager manager = new BlockManager(4096, 8, storage);
+        ByteStorage dataBlocksStorage = new ByteBufferByteStorage(ByteBuffer.allocate(4096 * 8));
+        BlockManager manager = new BlockManager(4096, 8, storage, dataBlocksStorage);
 
         manager.getGlobalOffset(Metadata.NO_BLOCK, 100);
     }
@@ -21,7 +22,8 @@ public class BlockManagerTest {
     @Test(expected = IndexOutOfBoundsException.class)
     public void getBlockOffsetShouldThrow_When_OneBlock() throws Exception {
         ByteStorage storage = new ByteBufferByteStorage(ByteBuffer.allocate(BlockManager.size(8)));
-        BlockManager manager = new BlockManager(4096, 8, storage);
+        ByteStorage dataBlocksStorage = new ByteBufferByteStorage(ByteBuffer.allocate(4096 * 8));
+        BlockManager manager = new BlockManager(4096, 8, storage, dataBlocksStorage);
 
         int firstBlock = manager.allocateBlockChain();
         manager.ensureGlobalOffset(firstBlock, 42);
@@ -31,7 +33,8 @@ public class BlockManagerTest {
     @Test(expected = BlockLimitExceededException.class)
     public void ensureBlockOffsetShould_When_LimitExceeded() throws Exception {
         ByteStorage storage = new ByteBufferByteStorage(ByteBuffer.allocate(BlockManager.size(8)));
-        BlockManager manager = new BlockManager(4096, 8, storage);
+        ByteStorage dataBlocksStorage = new ByteBufferByteStorage(ByteBuffer.allocate(4096 * 8));
+        BlockManager manager = new BlockManager(4096, 8, storage, dataBlocksStorage);
         int firstBlock = manager.allocateBlockChain();
         manager.ensureGlobalOffset(firstBlock, 40960);
     }
@@ -39,7 +42,8 @@ public class BlockManagerTest {
     @Test
     public void blockOffset() throws Exception {
         ByteStorage storage = new ByteBufferByteStorage(ByteBuffer.allocate(BlockManager.size(8)));
-        BlockManager manager = new BlockManager(4096, 8, storage);
+        ByteStorage dataBlocksStorage = new ByteBufferByteStorage(ByteBuffer.allocate(4096 * 8));
+        BlockManager manager = new BlockManager(4096, 8, storage, dataBlocksStorage);
         assertThat(manager.getBlockCount(), is(0));
 
         int firstBlock = manager.allocateBlockChain();
@@ -60,7 +64,8 @@ public class BlockManagerTest {
     @Test
     public void deallocateBlocks() throws Exception {
         ByteStorage storage = new ByteBufferByteStorage(ByteBuffer.allocate(BlockManager.size(8)));
-        BlockManager manager = new BlockManager(4096, 8, storage);
+        ByteStorage dataBlocksStorage = new ByteBufferByteStorage(ByteBuffer.allocate(4096 * 8));
+        BlockManager manager = new BlockManager(4096, 8, storage, dataBlocksStorage);
         assertThat(manager.getBlockCount(), is(0));
 
         int firstBlock = manager.allocateBlockChain();
@@ -75,7 +80,8 @@ public class BlockManagerTest {
     @Test
     public void truncateToSize() throws Exception {
         ByteStorage storage = new ByteBufferByteStorage(ByteBuffer.allocate(BlockManager.size(8)));
-        BlockManager manager = new BlockManager(4096, 8, storage);
+        ByteStorage dataBlocksStorage = new ByteBufferByteStorage(ByteBuffer.allocate(4096 * 8));
+        BlockManager manager = new BlockManager(4096, 8, storage, dataBlocksStorage);
         assertThat(manager.getBlockCount(), is(0));
 
         int firstBlock = manager.allocateBlockChain();

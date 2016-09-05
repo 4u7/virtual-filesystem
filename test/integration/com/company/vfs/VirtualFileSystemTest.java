@@ -14,10 +14,7 @@ public class VirtualFileSystemTest {
     public void setUp() throws Exception {
         removeFilesystemFile();
 
-        VirtualFileSystem.create(FILESYSTEM_FILENAME)
-                .maxBlocks(1024)
-                .maxEntries(1024)
-                .build();
+        VirtualFileSystem.create(FILESYSTEM_FILENAME, 4096);
     }
 
     @Test
@@ -43,7 +40,7 @@ public class VirtualFileSystemTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void createShouldThrow() throws Exception {
-        VirtualFileSystem.create(null);
+        VirtualFileSystem.create(null, 4096);
     }
 
     @Test(expected = IllegalArgumentException.class)

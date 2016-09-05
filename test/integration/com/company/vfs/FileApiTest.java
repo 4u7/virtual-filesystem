@@ -29,10 +29,7 @@ public class FileApiTest {
     public void setUp() throws Exception {
         removeFilesystemFile();
 
-        FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME)
-                .maxBlocks(1024)
-                .maxEntries(1024)
-                .build();
+        FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME, 1024);
 
         for(String dir : DIRECTORIES) {
             fs.createDirectory(dir);

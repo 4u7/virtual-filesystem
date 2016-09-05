@@ -5,7 +5,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
-public class MappedFileByteStorage implements ByteStorage {
+class MappedFileByteStorage implements ByteStorage {
 
 
     private final String path;
@@ -20,7 +20,7 @@ public class MappedFileByteStorage implements ByteStorage {
         this.length = 0;
     }
 
-    public MappedFileByteStorage(String path, int offset, int length) {
+    MappedFileByteStorage(String path, int offset, int length) {
 
         this.path = path;
         this.offset = offset;
@@ -63,8 +63,11 @@ public class MappedFileByteStorage implements ByteStorage {
     }
 
     @Override
-    public ByteStorage slice(int offset, int length) {
-        return new MappedFileByteStorage(path, this.offset + offset, length);
+    public void putBytes(int offset, byte[] bytes) throws IOException {
+        ensureMapping();
+        for (int i = 0; i < bytes.length; ++i) {
+            byteBuffer.put(offset + i, bytes[i]);
+        }
     }
 
     private void ensureMapping() throws IOException {

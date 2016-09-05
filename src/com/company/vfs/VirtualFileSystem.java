@@ -18,27 +18,20 @@ import java.util.List;
 public class VirtualFileSystem implements FileSystem {
 
     private static final int MAGIC_CONSTANT = 0x70AD70E5;
-    private static final int HEADER_SIZE = 16;
+    private static final int HEADER_SIZE = 12;
 
-    private final MetadataManager metadataManager;
+    private static final int DEFAULT_BLOCK_SIZE = 4096;
+
     private final BlockManager blockManager;
-
+    private final MetadataManager metadataManager;
     private final FileSystemEntryManager fileSystemEntryManager;
 
-    private VirtualFileSystem(ByteStorage byteStorage, int blockSize, int maxBlocks, int maxEntries) throws IOException {
-        int metadataSize = MetadataManager.size(maxEntries);
-        ByteStorage metadataByteStorage = byteStorage.slice(HEADER_SIZE, metadataSize);
-        this.metadataManager = new MetadataManager(maxEntries, metadataByteStorage);
+    private VirtualFileSystem(BlockManager blockManager, MetadataManager metadataManager,
+                              FileSystemEntryManager fileSystemEntryManager) throws IOException {
 
-        int blockTableOffset = HEADER_SIZE + metadataSize;
-        int blockTableSize = BlockManager.size(maxBlocks);
-        ByteStorage blockTableByteStorage = byteStorage.slice(blockTableOffset, blockTableSize);
-        this.blockManager = new BlockManager(blockSize, maxBlocks, blockTableByteStorage);
-
-        int dataBlocksOffset = blockTableOffset + blockTableSize;
-        ByteStorage dataBlocksStorage = byteStorage.slice(dataBlocksOffset, maxBlocks * blockSize);
-
-        fileSystemEntryManager = new FileSystemEntryManager(metadataManager, blockManager, dataBlocksStorage);
+        this.blockManager = blockManager;
+        this.metadataManager = metadataManager;
+        this.fileSystemEntryManager = fileSystemEntryManager;
     }
 
     /**
@@ -68,10 +61,20 @@ public class VirtualFileSystem implements FileSystem {
 
             int blockSize = randomAccessFile.readInt();
             int maxBlocks = randomAccessFile.readInt();
-            int maxEntries = randomAccessFile.readInt();
 
-            ByteStorage byteStorage = new MappedFileByteStorage(path);
-            return new VirtualFileSystem(byteStorage, blockSize, maxBlocks, maxEntries);
+            ByteStorage dataBlocksStorage = new SynchronizedByteStorage(
+                    new MappedFileByteStorage(path, HEADER_SIZE + BlockManager.size(maxBlocks), maxBlocks * blockSize));
+
+            ByteStorage blockManagerStorage = new SynchronizedByteStorage(
+                    new MappedFileByteStorage(path, HEADER_SIZE, BlockManager.size(maxBlocks)));
+            BlockManager blockManager = new BlockManager(blockSize, maxBlocks, blockManagerStorage, dataBlocksStorage);
+
+            MetadataManager metadataManager = new MetadataManager(blockManager, dataBlocksStorage);
+
+            FileSystemEntryManager fileSystemEntryManager = new FileSystemEntryManager(metadataManager,
+                    blockManager, dataBlocksStorage);
+
+            return new VirtualFileSystem(blockManager, metadataManager, fileSystemEntryManager);
         }
     }
 
@@ -80,11 +83,40 @@ public class VirtualFileSystem implements FileSystem {
      * @param path path to file to be created
      * @return Builder object which can be used to configure vfs
      */
-    public static Builder create(String path) {
+    public static VirtualFileSystem create(String path, int maxBlocks) throws IOException {
         if(path == null) {
             throw new IllegalArgumentException("path parameter can't be null.");
         }
-        return new Builder(path);
+
+        File file = new File(path);
+        if(file.exists()) {
+            throw new FileAlreadyExistsException(path);
+        }
+
+        int blockSize = DEFAULT_BLOCK_SIZE;
+
+        RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
+        randomAccessFile.writeInt(MAGIC_CONSTANT);
+        randomAccessFile.writeInt(blockSize);
+        randomAccessFile.writeInt(maxBlocks);
+
+        ByteStorage dataBlocksStorage = new SynchronizedByteStorage(
+                new MappedFileByteStorage(path, HEADER_SIZE + BlockManager.size(maxBlocks), maxBlocks * blockSize));
+
+        ByteStorage blockManagerStorage = new SynchronizedByteStorage(
+                new MappedFileByteStorage(path, HEADER_SIZE, BlockManager.size(maxBlocks)));
+        BlockManager blockManager = new BlockManager(blockSize, maxBlocks, blockManagerStorage, dataBlocksStorage);
+
+        // 0 and 1 block chains reserved for metadata
+        blockManager.allocateBlockChain();
+        blockManager.allocateBlockChain();
+
+        MetadataManager metadataManager = new MetadataManager(blockManager, dataBlocksStorage);
+
+        FileSystemEntryManager fileSystemEntryManager = new FileSystemEntryManager(metadataManager,
+                blockManager, dataBlocksStorage);
+
+        return new VirtualFileSystem(blockManager, metadataManager, fileSystemEntryManager);
     }
 
     /**
@@ -269,13 +301,6 @@ public class VirtualFileSystem implements FileSystem {
     }
 
     /**
-     * @return maximum number of entries
-     */
-    public int getMaxEntries() {
-        return metadataManager.getMaxEntries();
-    }
-
-    /**
      * @return number of allocated blocks
      */
     public int getBlocksCount() {
@@ -286,66 +311,6 @@ public class VirtualFileSystem implements FileSystem {
      * @return number of allocated entries
      */
     public int getEntriesCount() {
-        return metadataManager.getEntriesCount();
-    }
-
-    /**
-     * Used to configure and build new VirtualFIleSystem object
-     */
-    public static class Builder {
-
-        private static final int DEFAULT_BLOCK_SIZE = 4096;
-        private static final int DEFAULT_MAX_BLOCKS = 32768;
-        private static final int DEFAULT_MAX_ENTRIES = 32768;
-
-        private int blockSize = DEFAULT_BLOCK_SIZE;
-        private int maxEntries = DEFAULT_MAX_ENTRIES;
-        private int maxBlocks = DEFAULT_MAX_BLOCKS;
-        private final String path;
-
-        Builder(String path) {
-            this.path = path;
-        }
-
-        /** Creates new VirtualFileSystem object with given parameters
-         * @return  new VirtualFileSystem object
-         * @throws IOException
-         */
-        public VirtualFileSystem build() throws IOException {
-
-            File file = new File(path);
-            if(file.exists()) {
-                throw new FileAlreadyExistsException(path);
-            }
-
-            RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
-            randomAccessFile.writeInt(MAGIC_CONSTANT);
-            randomAccessFile.writeInt(blockSize);
-            randomAccessFile.writeInt(maxBlocks);
-            randomAccessFile.writeInt(maxEntries);
-
-            ByteStorage byteStorage = new MappedFileByteStorage(path);
-            return new VirtualFileSystem(byteStorage, blockSize, maxBlocks, maxEntries);
-        }
-
-        /**
-         * Sets maximum number of entries for filesystem. Default is 32768
-         * @param maxEntries maximum number of entries
-         * @return
-         */
-        public Builder maxEntries(int maxEntries) {
-            this.maxEntries = maxEntries;
-            return this;
-        }
-
-        /**
-         * Sets maximum number of blocks for filesystem. Default is 32768, default block size is 4096
-         * @param maxBlocks
-         * @return
-         */
-        public Builder maxBlocks(int maxBlocks) {
-            this.maxBlocks = maxBlocks;
-            return this;
-        }
+        return metadataManager.getMetadataCount();
     }
 }

@@ -26,14 +26,11 @@ public class ConcurrencyTest {
 
     @Test
     public void createDirectory() throws Exception {
-        FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME)
-                .maxBlocks(4096)
-                .maxEntries(4096)
-                .build();
+        FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME, 1024);
 
         fs.createDirectory("foo");
         int numberOfThreads = 5;
-        int numberOfItems = 2000;
+        int numberOfItems = 1000;
 
         ArrayList<Thread> threads = new ArrayList<>();
         Set<String> testDirectories = new HashSet<>();
@@ -88,15 +85,12 @@ public class ConcurrencyTest {
 
     @Test
     public void writeMultipleFiles() throws Exception {
-        FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME)
-                .maxBlocks(4096)
-                .maxEntries(4096)
-                .build();
+        FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME, 4096);
 
         ArrayList<Thread> threads = new ArrayList<>();
         byte[] data = "data".getBytes();
         int threadsNumber = 10;
-        int writeTimes = 50000;
+        int writeTimes = 20000;
 
         for(int i = 0; i < threadsNumber; ++i) {
             String filename = "data" + i;
@@ -132,10 +126,7 @@ public class ConcurrencyTest {
 
     @Test
     public void createAndDeleteDirectory() throws Exception {
-        VirtualFileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME)
-                .maxBlocks(4096)
-                .maxEntries(4096)
-                .build();
+        VirtualFileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME, 4096);
 
         int numberOfThreads = 5;
         int numberOfItems = 800;
@@ -195,26 +186,23 @@ public class ConcurrencyTest {
 
         assertThat(fs.getDirectories("/"), is(Collections.emptyList()));
         assertThat(fs.getEntriesCount(), is(1));
-        assertThat(fs.getBlocksCount(), is(0));
+        assertThat(fs.getBlocksCount(), is(2));
     }
 
     @Test
     public void createDirectoryAndWriteFiles() throws Exception {
-        FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME)
-                .maxBlocks(4096)
-                .maxEntries(4096)
-                .build();
+        FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME, 4096);
 
         fs.createDirectory("foo");
         int numberOfThreads = 5;
-        int numberOfItems = 2000;
+        int numberOfItems = 1000;
 
         ArrayList<Thread> directoryThreads = new ArrayList<>();
         ArrayList<Thread> fileThreads = new ArrayList<>();
         Set<String> testDirectories = new HashSet<>();
 
         byte[] data = "data".getBytes();
-        int writeTimes = 30000;
+        int writeTimes = 10000;
 
         ConcurrentLinkedQueue<String> queue = new ConcurrentLinkedQueue<>();
         for(int i = 0; i < numberOfItems; ++i) {

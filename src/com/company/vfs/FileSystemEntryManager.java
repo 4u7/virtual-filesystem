@@ -22,7 +22,7 @@ class FileSystemEntryManager {
 
         this.metadataManager = metadataManager;
         this.blockManager = blockManager;
-        this.dataBlockStorage = new SynchronizedByteStorage(dataBlockStorage);
+        this.dataBlockStorage = dataBlockStorage;
         this.openedFiles = new ConcurrentHashMap<>();
         this.fileSystemStructureLock = new ReentrantReadWriteLock();
     }

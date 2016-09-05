@@ -37,8 +37,7 @@ class SynchronizedByteStorage implements ByteStorage {
     }
 
     @Override
-    synchronized public ByteStorage slice(int offset, int length) {
-        return new SynchronizedByteStorage(byteStorage.slice(offset, length));
+    synchronized public void putBytes(int offset, byte[] bytes) throws IOException {
+        byteStorage.putBytes(offset, bytes);
     }
-
 }

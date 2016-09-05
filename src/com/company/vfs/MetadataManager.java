@@ -1,55 +1,60 @@
 package com.company.vfs;
 
 import com.company.vfs.Metadata.Type;
-import com.company.vfs.exception.FileSystemEntriesLimitExceededException;
 
 import java.io.IOException;
 import java.lang.ref.WeakReference;
-import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 
 class MetadataManager {
 
-    private final int maxEntries;
-    private final ByteStorage byteStorage;
-    private final MappedMetadata root;
+    private final static int MAP_BLOCK_CHAIN = 0;
+    private final static int METADATA_BLOCK_CHAIN = 1;
+    private final static int MAP_OFFSET = 4;
+
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    private final Map<Integer, WeakReference<MappedMetadata>> metadataCache = new HashMap<>();
     private final BitSet metadataMap;
-    private final int metadataMapOffset;
-    private final int metadataOffset;
-    private final ReadWriteLock lock;
-    private final ArrayList<WeakReference<MappedMetadata>> metadataCache;
 
-    MetadataManager(int maxEntries, ByteStorage byteStorage) throws IOException {
+    private final BlockManager blockManager;
+    private final ByteStorage mapByteStorage;
+    private final ByteStorage metadataByteStorage;
+    private final Metadata root;
 
-        this.lock = new ReentrantReadWriteLock();
-        this.maxEntries = maxEntries;
-        this.byteStorage = new SynchronizedByteStorage(byteStorage);
-        this.metadataMapOffset = 0;
+    private int maxMetadataCount;
 
-        int metadataMapLength = (maxEntries + 7) / 8;
-        byte[] blockMapBytes = byteStorage.getBytes(metadataMapOffset, metadataMapLength);
-        this.metadataMap = BitSet.valueOf(blockMapBytes);
+    MetadataManager(BlockManager blockManager, ByteStorage dataBlocksStorage) throws IOException {
+        this.blockManager = blockManager;
 
-        this.metadataOffset = metadataMapLength;
-        this.root = new MappedMetadata(0, byteStorage, metadataOffset);
+        this.mapByteStorage = new BlockChainByteStorage(dataBlocksStorage,
+                blockManager, MAP_BLOCK_CHAIN);
 
-        this.metadataCache = new ArrayList<>(Collections.nCopies(maxEntries, null));
+        this.metadataByteStorage = new BlockChainByteStorage(dataBlocksStorage,
+                blockManager, METADATA_BLOCK_CHAIN);
 
-        // no root allocated
-        if(!metadataMap.get(0)) {
+        maxMetadataCount = mapByteStorage.getInt(0);
+        int byteLength = (maxMetadataCount + 7) / 8;
+
+        if(maxMetadataCount > 0) {
+            byte[] mapBytes = mapByteStorage.getBytes(MAP_OFFSET, byteLength);
+            metadataMap = BitSet.valueOf(mapBytes);
+        }
+        else {
+            metadataMap = new BitSet();
+        }
+
+        this.root = new MappedMetadata(0, metadataByteStorage);
+        if(!isAllocated(0)) {
             setAllocated(0);
             this.root.setType(Type.Directory);
+            this.root.setDataLength(0);
             this.root.setFirstBlock(Metadata.NO_BLOCK);
         }
-    }
-
-    static int size(int maxEntries) {
-        int metadataMapLength = (maxEntries + 7) / 8;
-        return metadataMapLength + maxEntries * MappedMetadata.SIZE;
     }
 
     Metadata getRoot() {
@@ -58,7 +63,7 @@ class MetadataManager {
 
     Metadata getMetadata(int metadataId) {
 
-        if(metadataId < 0 || metadataId >= maxEntries) {
+        if(metadataId < 0) {
             throw new IndexOutOfBoundsException();
         }
 
@@ -76,8 +81,8 @@ class MetadataManager {
                     return cachedMetadata.get();
                 }
 
-                MappedMetadata metadata = new MappedMetadata(metadataId, byteStorage, metadataOffset);
-                metadataCache.set(metadataId, new WeakReference<>(metadata));
+                MappedMetadata metadata = new MappedMetadata(metadataId, metadataByteStorage);
+                metadataCache.put(metadataId, new WeakReference<>(metadata));
                 return metadata;
             }
 
@@ -92,18 +97,15 @@ class MetadataManager {
         lock.writeLock().lock();
         try {
             int index = metadataMap.nextClearBit(0);
-            if (index >= maxEntries) {
-                throw new FileSystemEntriesLimitExceededException();
-            }
 
             setAllocated(index);
 
-            MappedMetadata metadata = new MappedMetadata(index, byteStorage, metadataOffset);
+            MappedMetadata metadata = new MappedMetadata(index, metadataByteStorage);
             metadata.setType(type);
             metadata.setDataLength(0);
             metadata.setFirstBlock(Metadata.NO_BLOCK);
 
-            metadataCache.set(index, new WeakReference<>(metadata));
+            metadataCache.put(index, new WeakReference<>(metadata));
             return metadata;
         }
         finally {
@@ -116,14 +118,14 @@ class MetadataManager {
         try {
             int index = metadata.getId();
             setDeallocated(index);
-            metadataCache.set(index, null);
+            metadataCache.remove(index);
         }
         finally {
             lock.writeLock().unlock();
         }
     }
 
-    int getEntriesCount() {
+    int getMetadataCount() {
         lock.readLock().lock();
         try {
             return metadataMap.cardinality();
@@ -133,26 +135,41 @@ class MetadataManager {
         }
     }
 
-    int getMaxEntries() {
-        return maxEntries;
+    private boolean isAllocated(int index) {
+        return metadataMap.get(index);
     }
 
     private void setAllocated(int index) throws IOException {
+        if(index + 1 > maxMetadataCount) {
+            maxMetadataCount = index + 1;
+            mapByteStorage.putInt(0, maxMetadataCount);
+        }
+
         metadataMap.set(index);
         // Set bit in storage
-        int byteOffset = metadataMapOffset + index / 8;
-        byte mapByte = byteStorage.getByte(byteOffset);
+        int byteOffset = MAP_OFFSET + index / 8;
+        byte mapByte = mapByteStorage.getByte(byteOffset);
         mapByte |= 1 << (index % 8);
-        byteStorage.putByte(byteOffset, mapByte);
+        mapByteStorage.putByte(byteOffset, mapByte);
     }
 
     private void setDeallocated(int index) throws IOException {
         metadataMap.clear(index);
         // Set bit in storage
-        int byteOffset = metadataMapOffset + index / 8;
-        byte mapByte = byteStorage.getByte(byteOffset);
+        int byteOffset = MAP_OFFSET + index / 8;
+        byte mapByte = mapByteStorage.getByte(byteOffset);
         mapByte &= ~(1 << (index % 8));
-        byteStorage.putByte(byteOffset, mapByte);
+        mapByteStorage.putByte(byteOffset, mapByte);
+
+        int newMax = metadataMap.previousSetBit(maxMetadataCount - 1) + 1;
+        if(newMax < maxMetadataCount) {
+            maxMetadataCount = newMax;
+            mapByteStorage.putInt(0, maxMetadataCount);
+
+            int mapByteLength = (maxMetadataCount + 7) / 8;
+            blockManager.truncateBlockChain(MAP_BLOCK_CHAIN, MAP_OFFSET + mapByteLength);
+            blockManager.truncateBlockChain(METADATA_BLOCK_CHAIN, maxMetadataCount * MappedMetadata.SIZE);
+        }
     }
 
     private static class MappedMetadata implements Metadata {
@@ -166,13 +183,11 @@ class MetadataManager {
 
         private final int id;
         private final ByteStorage byteStorage;
-        private final int metadataOffset;
 
-        MappedMetadata(int id, ByteStorage byteStorage, int metadataOffset) {
+        MappedMetadata(int id, ByteStorage byteStorage) {
 
             this.id = id;
             this.byteStorage = byteStorage;
-            this.metadataOffset = metadataOffset;
         }
 
         @Override
@@ -224,7 +239,7 @@ class MetadataManager {
         }
 
         private int offset() {
-            return metadataOffset + id * SIZE;
+            return id * SIZE;
         }
 
         private int readField(int index) throws IOException {

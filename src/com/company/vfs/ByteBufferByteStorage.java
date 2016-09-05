@@ -3,11 +3,11 @@ package com.company.vfs;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-public class ByteBufferByteStorage implements ByteStorage {
+class ByteBufferByteStorage implements ByteStorage {
 
     private final ByteBuffer buffer;
 
-    public ByteBufferByteStorage(ByteBuffer buffer) {
+    ByteBufferByteStorage(ByteBuffer buffer) {
 
         this.buffer = buffer;
     }
@@ -42,10 +42,9 @@ public class ByteBufferByteStorage implements ByteStorage {
     }
 
     @Override
-    public ByteStorage slice(int offset, int length) {
-        buffer.position(offset);
-        ByteStorage result =  new ByteBufferByteStorage(buffer.slice());
-        buffer.position(0);
-        return result;
+    public void putBytes(int offset, byte[] bytes) throws IOException {
+        for(int i = 0; i < bytes.length; ++i) {
+            putByte(offset + i, bytes[i]);
+        }
     }
 }

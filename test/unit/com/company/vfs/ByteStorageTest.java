@@ -46,27 +46,4 @@ public class ByteStorageTest {
 
         assertThat(testBuffer.array(), is(data));
     }
-
-    @Test
-    public void slice() throws Exception {
-        byte[] data = "lorem ipsum dolor sit amet some random data to test".getBytes();
-        ByteBuffer byteBuffer = ByteBuffer.wrap(data);
-        ByteStorage storage = new ByteBufferByteStorage(byteBuffer);
-        ByteStorage synchronizedStorage = new SynchronizedByteStorage(storage);
-
-        byteBuffer.position(5);
-        byteBuffer = byteBuffer.slice();
-        storage = storage.slice(5, 20);
-        synchronizedStorage = synchronizedStorage.slice(5, 20);
-        for (int i = 0; i < 20; ++i) {
-            assertEquals(byteBuffer.get(i), synchronizedStorage.getByte(i));
-            assertEquals(byteBuffer.get(i), storage.getByte(i));
-        }
-
-        for (int i = 0; i < 20; ++i) {
-            assertEquals(byteBuffer.getInt(i), synchronizedStorage.getInt(i));
-            assertEquals(byteBuffer.getInt(i), storage.getInt(i));
-        }
-    }
-
 }

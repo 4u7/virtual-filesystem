@@ -87,7 +87,6 @@ class BlockManager {
             int currentBlock = firstBlock;
             if(currentBlock < 0) {
                 return;
-                // TODO: throw ??
             }
 
             int maxBlocks = (size + blockSize - 1) / blockSize;

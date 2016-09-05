@@ -11,9 +11,7 @@ import java.util.Arrays;
 import static com.company.vfs.Utils.FILESYSTEM_FILENAME;
 import static com.company.vfs.Utils.removeFilesystemFile;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class FileApiTest {
 
@@ -58,6 +56,18 @@ public class FileApiTest {
             BufferedReader reader = new BufferedReader(inputStreamReader)) {
 
             assertThat(reader.readLine(), is(DEMO_TEXT));
+        }
+    }
+
+    @Test
+    public void readSameFile() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(FILESYSTEM_FILENAME);
+        try(InputStream inputStream1 = fs.readFile("/foo/Новая Папка 547/quine.cpp");
+            InputStream inputStream2 = fs.readFile("/foo/Новая Папка 547/quine.cpp")) {
+
+            while (inputStream1.available() > 0 && inputStream2.available() > 0) {
+                assertEquals(inputStream1.read(), inputStream2.read());
+            }
         }
     }
 

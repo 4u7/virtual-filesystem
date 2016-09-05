@@ -297,6 +297,7 @@ class FileSystemEntryManager {
             Integer timesOpened = openedFiles.getOrDefault(metadata, 0);
 
             if(timesOpened < 1) {
+                // should never happen
                 throw new VirtualFileSystemException("Attempt to close file which is not opened.");
             }
 

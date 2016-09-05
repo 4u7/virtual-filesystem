@@ -132,7 +132,7 @@ class FileSystemEntryManager {
                 throw new AccessDeniedException("Opened file can not be deleted.");
             }
 
-            blockManager.deallocateBlocks(metadataToDelete.getFirstBlock());
+            blockManager.deallocateBlockChain(metadataToDelete.getFirstBlock());
             metadataManager.deallocateMetadata(metadataToDelete);
 
             entries.remove(entryToDelete.get());
@@ -366,10 +366,10 @@ class FileSystemEntryManager {
 
         int length = metadata.getDataLength();
         if(length > 0) {
-            blockManager.truncateBlocksToSize(metadata.getFirstBlock(), length);
+            blockManager.truncateBlockChain(metadata.getFirstBlock(), length);
         }
         else {
-            blockManager.deallocateBlocks(metadata.getFirstBlock());
+            blockManager.deallocateBlockChain(metadata.getFirstBlock());
             metadata.setFirstBlock(Metadata.NO_BLOCK);
         }
     }
@@ -419,7 +419,7 @@ class FileSystemEntryManager {
             synchronized (metadata) {
                 int firstBlock = metadata.getFirstBlock();
                 if (firstBlock < 0) {
-                    firstBlock = blockManager.allocateFirstBlock();
+                    firstBlock = blockManager.allocateBlockChain();
                     metadata.setFirstBlock(firstBlock);
                 }
 

@@ -35,7 +35,7 @@ class BlockManager {
         this.lock = new ReentrantReadWriteLock();
     }
 
-    int allocateFirstBlock() throws IOException {
+    int allocateBlockChain() throws IOException {
         lock.writeLock().lock();
         try {
             return allocateBlock();
@@ -78,7 +78,7 @@ class BlockManager {
         }
     }
 
-    void truncateBlocksToSize(int firstBlock, int size) throws IOException {
+    void truncateBlockChain(int firstBlock, int size) throws IOException {
         lock.writeLock().lock();
         try {
 
@@ -107,7 +107,7 @@ class BlockManager {
         }
     }
 
-    void deallocateBlocks(int firstBlock) throws IOException {
+    void deallocateBlockChain(int firstBlock) throws IOException {
         int currentBlock = firstBlock;
         lock.writeLock().lock();
         try {

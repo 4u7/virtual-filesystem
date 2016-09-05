@@ -23,7 +23,7 @@ public class BlockManagerTest {
         ByteStorage storage = new ByteBufferByteStorage(ByteBuffer.allocate(BlockManager.size(8)));
         BlockManager manager = new BlockManager(4096, 8, storage);
 
-        int firstBlock = manager.allocateFirstBlock();
+        int firstBlock = manager.allocateBlockChain();
         manager.ensureGlobalOffset(firstBlock, 42);
         manager.getGlobalOffset(firstBlock, 4200);
     }
@@ -32,7 +32,7 @@ public class BlockManagerTest {
     public void ensureBlockOffsetShould_When_LimitExceeded() throws Exception {
         ByteStorage storage = new ByteBufferByteStorage(ByteBuffer.allocate(BlockManager.size(8)));
         BlockManager manager = new BlockManager(4096, 8, storage);
-        int firstBlock = manager.allocateFirstBlock();
+        int firstBlock = manager.allocateBlockChain();
         manager.ensureGlobalOffset(firstBlock, 40960);
     }
 
@@ -42,7 +42,7 @@ public class BlockManagerTest {
         BlockManager manager = new BlockManager(4096, 8, storage);
         assertThat(manager.getBlockCount(), is(0));
 
-        int firstBlock = manager.allocateFirstBlock();
+        int firstBlock = manager.allocateBlockChain();
 
         int offset = manager.ensureGlobalOffset(firstBlock, 42);
         assertThat(offset, is(42));
@@ -63,12 +63,12 @@ public class BlockManagerTest {
         BlockManager manager = new BlockManager(4096, 8, storage);
         assertThat(manager.getBlockCount(), is(0));
 
-        int firstBlock = manager.allocateFirstBlock();
+        int firstBlock = manager.allocateBlockChain();
 
         manager.ensureGlobalOffset(firstBlock, 10000);
         assertThat(manager.getBlockCount(), is(3));
 
-        manager.deallocateBlocks(firstBlock);
+        manager.deallocateBlockChain(firstBlock);
         assertThat(manager.getBlockCount(), is(0));
     }
 
@@ -78,18 +78,18 @@ public class BlockManagerTest {
         BlockManager manager = new BlockManager(4096, 8, storage);
         assertThat(manager.getBlockCount(), is(0));
 
-        int firstBlock = manager.allocateFirstBlock();
+        int firstBlock = manager.allocateBlockChain();
 
         manager.ensureGlobalOffset(firstBlock, 10000);
         assertThat(manager.getBlockCount(), is(3));
 
-        manager.truncateBlocksToSize(firstBlock, 10000);
+        manager.truncateBlockChain(firstBlock, 10000);
         assertThat(manager.getBlockCount(), is(3));
 
-        manager.truncateBlocksToSize(firstBlock, 8000);
+        manager.truncateBlockChain(firstBlock, 8000);
         assertThat(manager.getBlockCount(), is(2));
 
-        manager.truncateBlocksToSize(firstBlock, 0);
+        manager.truncateBlockChain(firstBlock, 0);
         assertThat(manager.getBlockCount(), is(0));
     }
 }

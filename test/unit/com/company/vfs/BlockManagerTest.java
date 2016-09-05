@@ -11,48 +11,48 @@ import static org.junit.Assert.*;
 public class BlockManagerTest {
 
     @Test(expected = IndexOutOfBoundsException.class)
-    public void getBlockOffsetShouldThrow_When_NotEnoughBlocks() throws Exception {
+    public void getBlockOffsetShouldThrow_When_NoBlocks() throws Exception {
         ByteStorage storage = new ByteBufferByteStorage(ByteBuffer.allocate(BlockManager.size(8)));
-        Metadata metadata = new TestMetadata();
         BlockManager manager = new BlockManager(4096, 8, storage);
 
-        manager.getBlockOffset(metadata, 100);
+        manager.getGlobalOffset(Metadata.NO_BLOCK, 100);
     }
 
     @Test(expected = IndexOutOfBoundsException.class)
-    public void getBlockOffsetShouldThrow_When_MetadataHasOneBlock() throws Exception {
+    public void getBlockOffsetShouldThrow_When_OneBlock() throws Exception {
         ByteStorage storage = new ByteBufferByteStorage(ByteBuffer.allocate(BlockManager.size(8)));
-        Metadata metadata = new TestMetadata();
         BlockManager manager = new BlockManager(4096, 8, storage);
 
-        manager.ensureBlockOffset(metadata, 42);
-        manager.getBlockOffset(metadata, 4200);
+        int firstBlock = manager.allocateFirstBlock();
+        manager.ensureGlobalOffset(firstBlock, 42);
+        manager.getGlobalOffset(firstBlock, 4200);
     }
 
     @Test(expected = BlockLimitExceededException.class)
     public void ensureBlockOffsetShould_When_LimitExceeded() throws Exception {
         ByteStorage storage = new ByteBufferByteStorage(ByteBuffer.allocate(BlockManager.size(8)));
-        Metadata metadata = new TestMetadata();
         BlockManager manager = new BlockManager(4096, 8, storage);
-        manager.ensureBlockOffset(metadata, 40960);
+        int firstBlock = manager.allocateFirstBlock();
+        manager.ensureGlobalOffset(firstBlock, 40960);
     }
 
     @Test
     public void blockOffset() throws Exception {
         ByteStorage storage = new ByteBufferByteStorage(ByteBuffer.allocate(BlockManager.size(8)));
-        Metadata metadata = new TestMetadata();
         BlockManager manager = new BlockManager(4096, 8, storage);
         assertThat(manager.getBlockCount(), is(0));
 
-        int offset = manager.ensureBlockOffset(metadata, 42);
+        int firstBlock = manager.allocateFirstBlock();
+
+        int offset = manager.ensureGlobalOffset(firstBlock, 42);
         assertThat(offset, is(42));
         assertThat(manager.getBlockCount(), is(1));
-        assertThat(metadata.getFirstBlock(), is(0));
+        assertThat(firstBlock, is(0));
 
-        offset = manager.getBlockOffset(metadata, 100);
+        offset = manager.getGlobalOffset(firstBlock, 100);
         assertThat(offset, is(100));
 
-        offset = manager.ensureBlockOffset(metadata, 4200);
+        offset = manager.ensureGlobalOffset(firstBlock, 4200);
         assertThat(offset, is(4200));
         assertThat(manager.getBlockCount(), is(2));
     }
@@ -60,37 +60,36 @@ public class BlockManagerTest {
     @Test
     public void deallocateBlocks() throws Exception {
         ByteStorage storage = new ByteBufferByteStorage(ByteBuffer.allocate(BlockManager.size(8)));
-        Metadata metadata = new TestMetadata();
         BlockManager manager = new BlockManager(4096, 8, storage);
         assertThat(manager.getBlockCount(), is(0));
 
-        manager.ensureBlockOffset(metadata, 10000);
+        int firstBlock = manager.allocateFirstBlock();
+
+        manager.ensureGlobalOffset(firstBlock, 10000);
         assertThat(manager.getBlockCount(), is(3));
 
-        manager.deallocateBlocks(metadata);
+        manager.deallocateBlocks(firstBlock);
         assertThat(manager.getBlockCount(), is(0));
     }
 
     @Test
     public void truncateToSize() throws Exception {
         ByteStorage storage = new ByteBufferByteStorage(ByteBuffer.allocate(BlockManager.size(8)));
-        Metadata metadata = new TestMetadata();
         BlockManager manager = new BlockManager(4096, 8, storage);
         assertThat(manager.getBlockCount(), is(0));
 
-        manager.ensureBlockOffset(metadata, 10000);
+        int firstBlock = manager.allocateFirstBlock();
+
+        manager.ensureGlobalOffset(firstBlock, 10000);
         assertThat(manager.getBlockCount(), is(3));
 
-        manager.truncateBlocksToSize(new TestMetadata());
+        manager.truncateBlocksToSize(firstBlock, 10000);
         assertThat(manager.getBlockCount(), is(3));
 
-        metadata.setDataLength(8000);
-        manager.truncateBlocksToSize(metadata);
+        manager.truncateBlocksToSize(firstBlock, 8000);
         assertThat(manager.getBlockCount(), is(2));
 
-        metadata.setDataLength(0);
-        manager.truncateBlocksToSize(metadata);
+        manager.truncateBlocksToSize(firstBlock, 0);
         assertThat(manager.getBlockCount(), is(0));
-        assertThat(metadata.getFirstBlock(), is(Metadata.NO_BLOCK));
     }
 }

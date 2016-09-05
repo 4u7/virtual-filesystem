@@ -132,7 +132,7 @@ class FileSystemEntryManager {
                 throw new AccessDeniedException("Opened file can not be deleted.");
             }
 
-            blockManager.deallocateBlocks(metadataToDelete);
+            blockManager.deallocateBlocks(metadataToDelete.getFirstBlock());
             metadataManager.deallocateMetadata(metadataToDelete);
 
             entries.remove(entryToDelete.get());
@@ -363,7 +363,15 @@ class FileSystemEntryManager {
                 entry.write(outputStream);
             }
         }
-        blockManager.truncateBlocksToSize(metadata);
+
+        int length = metadata.getDataLength();
+        if(length > 0) {
+            blockManager.truncateBlocksToSize(metadata.getFirstBlock(), length);
+        }
+        else {
+            blockManager.deallocateBlocks(metadata.getFirstBlock());
+            metadata.setFirstBlock(Metadata.NO_BLOCK);
+        }
     }
 
     private boolean isDirectory(FileSystemEntry entry) {
@@ -408,10 +416,17 @@ class FileSystemEntryManager {
                 throw new ClosedStreamException();
             }
 
-            int offset = blockManager.ensureBlockOffset(metadata, position);
-            dataBlockStorage.putByte(offset, (byte)b);
-            ++position;
+            int firstBlock = metadata.getFirstBlock();
+            if(firstBlock < 0) {
+                // TODO: thread safety
+                firstBlock = blockManager.allocateFirstBlock();
+                metadata.setFirstBlock(firstBlock);
+            }
 
+            int offset = blockManager.ensureGlobalOffset(firstBlock, position);
+            dataBlockStorage.putByte(offset, (byte) b);
+
+            ++position;
             metadata.updateDataLength(position);
         }
 
@@ -447,7 +462,7 @@ class FileSystemEntryManager {
                 return -1;
             }
 
-            int offset = blockManager.getBlockOffset(metadata, position);
+            int offset = blockManager.getGlobalOffset(metadata.getFirstBlock(), position);
             int result = dataBlockStorage.getByte(offset) & 0xFF;
             ++position;
 

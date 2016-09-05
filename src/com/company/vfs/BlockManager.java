@@ -35,13 +35,23 @@ class BlockManager {
         this.lock = new ReentrantReadWriteLock();
     }
 
-    int getBlockOffset(Metadata metadata, int position) throws IOException {
+    int allocateFirstBlock() throws IOException {
+        lock.writeLock().lock();
+        try {
+            return allocateBlock();
+        }
+        finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    int getGlobalOffset(int firstBlock, int position) throws IOException {
         lock.readLock().lock();
         try {
             int blockNumber = position / blockSize;
             int offsetInBlock = position % blockSize;
 
-            int blockIndex = getNthBlock(metadata, blockNumber);
+            int blockIndex = getNthBlock(firstBlock, blockNumber);
             if (blockIndex < 0) {
                 throw new IndexOutOfBoundsException("No block found for given position.");
             }
@@ -53,13 +63,13 @@ class BlockManager {
         }
     }
 
-    int ensureBlockOffset(Metadata metadata, int position) throws IOException {
+    int ensureGlobalOffset(int firstBlock, int position) throws IOException {
         lock.writeLock().lock();
         try {
             int blockNumber = position / blockSize;
             int offsetInBlock = position % blockSize;
 
-            int blockIndex = ensureNthBlock(metadata, blockNumber);
+            int blockIndex = ensureNthBlock(firstBlock, blockNumber);
 
             return blockIndex * blockSize + offsetInBlock;
         }
@@ -68,21 +78,17 @@ class BlockManager {
         }
     }
 
-    void truncateBlocksToSize(Metadata metadata) throws IOException {
+    void truncateBlocksToSize(int firstBlock, int size) throws IOException {
         lock.writeLock().lock();
         try {
 
-            int currentBlock = metadata.getFirstBlock();
+            int currentBlock = firstBlock;
             if(currentBlock < 0) {
                 return;
+                // TODO: throw ??
             }
 
-            int size = metadata.getDataLength();
             int maxBlocks = (size + blockSize - 1) / blockSize;
-
-            if(maxBlocks == 0) {
-                metadata.setFirstBlock(Metadata.NO_BLOCK);
-            }
 
             int blockCount = 1;
             while (currentBlock >= 0) {
@@ -101,8 +107,8 @@ class BlockManager {
         }
     }
 
-    void deallocateBlocks(Metadata metadata) throws IOException {
-        int currentBlock = metadata.getFirstBlock();
+    void deallocateBlocks(int firstBlock) throws IOException {
+        int currentBlock = firstBlock;
         lock.writeLock().lock();
         try {
             while (currentBlock >= 0) {
@@ -116,9 +122,9 @@ class BlockManager {
         }
     }
 
-    private int getNthBlock(Metadata metadata, int blockNumber) throws IOException {
-        int currentBlock = metadata.getFirstBlock();
+    private int getNthBlock(int firstBlock, int blockNumber) throws IOException {
 
+        int currentBlock = firstBlock;
         int i = 1;
         while(currentBlock >= 0 && i <= blockNumber) {
             currentBlock = getNextBlock(currentBlock);
@@ -128,13 +134,9 @@ class BlockManager {
         return currentBlock;
     }
 
-    private int ensureNthBlock(Metadata metadata, int blockNumber) throws IOException {
-        int currentBlock = metadata.getFirstBlock();
-        if(currentBlock < 0) {
-            currentBlock = allocateBlock();
-            metadata.setFirstBlock(currentBlock);
-        }
+    private int ensureNthBlock(int firstBlock, int blockNumber) throws IOException {
 
+        int currentBlock = firstBlock;
         int i = 1;
         while(i <= blockNumber) {
             int nextBlock = getNextBlock(currentBlock);

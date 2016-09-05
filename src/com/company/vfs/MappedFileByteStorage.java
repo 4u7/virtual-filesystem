@@ -13,13 +13,6 @@ class MappedFileByteStorage implements ByteStorage {
     private final int length;
     private ByteBuffer byteBuffer;
 
-    public MappedFileByteStorage(String path) {
-
-        this.path = path;
-        this.offset = 0;
-        this.length = 0;
-    }
-
     MappedFileByteStorage(String path, int offset, int length) {
 
         this.path = path;

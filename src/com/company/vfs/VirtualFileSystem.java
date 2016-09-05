@@ -223,7 +223,6 @@ public class VirtualFileSystem implements FileSystem {
      * @throws NoSuchFileException if parent directory doesn't exist
      * @throws NotDirectoryException if parent is not a directory
      * @throws BlockLimitExceededException if no more free blocks available.
-     * @throws FileSystemEntriesLimitExceededException if no more entries available.
      * @throws IOException if some error occurs while reading or writing underlying file
      */
     @Override
@@ -245,7 +244,6 @@ public class VirtualFileSystem implements FileSystem {
      * @throws NoSuchFileException if parent directory doesn't exist
      * @throws NotDirectoryException if parent is not a directory
      * @throws BlockLimitExceededException if no more free blocks available.
-     * @throws FileSystemEntriesLimitExceededException if no more entries available.
      * @throws IOException if some error occurs while reading or writing underlying file
      */
     @Override

@@ -101,4 +101,18 @@ public class BlockManagerTest {
         manager.truncateBlockChain(firstBlock, 0);
         assertThat(manager.getBlockCount(), is(0));
     }
+
+    @Test(expected = IndexOutOfBoundsException.class)
+    public void getBlockOffsetShouldThrow_When_Truncated() throws Exception {
+        ByteStorage storage = new ByteBufferByteStorage(ByteBuffer.allocate(BlockManager.size(8)));
+        ByteStorage dataBlocksStorage = new ByteBufferByteStorage(ByteBuffer.allocate(4096 * 8));
+        BlockManager manager = new BlockManager(4096, 8, storage, dataBlocksStorage);
+
+        int firstBlock = manager.allocateBlockChain();
+        manager.ensureGlobalOffset(firstBlock, 8000);
+        assertThat(manager.getGlobalOffset(firstBlock, 8000), is(8000));
+
+        manager.truncateBlockChain(firstBlock, 42);
+        manager.getGlobalOffset(firstBlock, 8000);
+    }
 }

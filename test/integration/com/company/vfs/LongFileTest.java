@@ -22,27 +22,30 @@ public class LongFileTest {
     public void longFileWriteReadTest() throws Exception {
         FileSystem fs = VirtualFileSystem.create(FILESYSTEM_FILENAME, 1024);
 
+        String filename = "huge.txt";
+        String data = "line of text";
+        int writeTimes = 100000;
 
-        try(OutputStream outputStream = fs.createFile("huge.txt");
+        try(OutputStream outputStream = fs.createFile(filename);
             OutputStreamWriter outputStreamWriter = new OutputStreamWriter(outputStream);
             BufferedWriter writer = new BufferedWriter(outputStreamWriter))
         {
-            for(int i = 0; i < 100000; ++i) {
-                writer.write("line of text");
+            for(int i = 0; i < writeTimes; ++i) {
+                writer.write(data);
                 writer.newLine();
-                writer.flush();
             }
         }
 
         fs = VirtualFileSystem.open(FILESYSTEM_FILENAME);
-        try(InputStream inputStream = fs.readFile("huge.txt");
+        try(InputStream inputStream = fs.readFile(filename);
             InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
             BufferedReader reader = new BufferedReader(inputStreamReader)) {
 
-            assertThat(inputStream.available(), is("line of text\n".getBytes().length * 100000));
+            int expectedLength = (data.getBytes().length + "\n".getBytes().length) * writeTimes;
+            assertThat(inputStream.available(), is(expectedLength));
 
-            for(int i = 0; i < 100000; ++i) {
-                assertThat(reader.readLine(), is("line of text"));
+            for(int i = 0; i < writeTimes; ++i) {
+                assertThat(reader.readLine(), is(data));
             }
         }
     }

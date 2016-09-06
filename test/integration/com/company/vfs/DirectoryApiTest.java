@@ -7,6 +7,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 
 import static com.company.vfs.Utils.FILESYSTEM_FILENAME;
@@ -72,6 +73,24 @@ public class DirectoryApiTest {
                 assertTrue(fs.isDirectory(dir + "/" + innerDir));
             }
         }
+    }
+
+    @Test
+    public void createManyDirectories() throws Exception {
+        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+
+        String basePath = "/foo/Новая Папка 547/";
+        int directoriesCount = 1000;
+        ArrayList<String> directories = new ArrayList<>();
+        for(int i = 0; i < directoriesCount; ++i) {
+            directories.add("Новая Папка " + i);
+        }
+
+        for(String d : directories) {
+            fs.createDirectory(basePath + d);
+        }
+
+        assertThat(fs.getDirectories(basePath), is(directories));
     }
 
     @Test(expected = NotDirectoryException.class)

@@ -85,20 +85,21 @@ class BlockManager {
         try {
 
             int currentBlock = firstBlock;
-            if(currentBlock < 0) {
-                return;
-            }
-
+            int previousBlock = NO_BLOCK;
             int maxBlocks = (size + blockSize - 1) / blockSize;
-
             int blockCount = 1;
+
             while (currentBlock >= 0) {
                 int nextBlock = getNextBlock(currentBlock);
 
                 if(blockCount > maxBlocks) {
                     setDeallocated(currentBlock);
+                    if(previousBlock >= 0) {
+                        setNextBlock(previousBlock, NO_BLOCK);
+                    }
                 }
 
+                previousBlock = currentBlock;
                 currentBlock = nextBlock;
                 ++blockCount;
             }
@@ -163,8 +164,7 @@ class BlockManager {
         }
 
         setAllocated(block);
-        int offset = blockTableOffset + block * 4;
-        byteStorage.putInt(offset, NO_BLOCK);
+        setNextBlock(block, NO_BLOCK);
 
         // fill allocated block with zeros
         byte zeros[] = new byte[blockSize];
@@ -174,10 +174,14 @@ class BlockManager {
     }
 
     private int allocateNextBlock(int block) throws IOException {
-        int offset = blockTableOffset + block * 4;
         int allocatedBlock = allocateBlock();
-        byteStorage.putInt(offset, allocatedBlock);
+        setNextBlock(block, allocatedBlock);
         return allocatedBlock;
+    }
+
+    private void setNextBlock(int block, int nextBlock) throws IOException {
+        int offset = blockTableOffset + block * Integer.BYTES;
+        byteStorage.putInt(offset, nextBlock);
     }
 
     static int size(int maxBlocks) {

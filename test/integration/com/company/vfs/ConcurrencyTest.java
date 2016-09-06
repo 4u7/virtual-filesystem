@@ -136,7 +136,7 @@ public class ConcurrencyTest {
         ConcurrentLinkedQueue<String> addQueue = new ConcurrentLinkedQueue<>();
         ConcurrentLinkedQueue<String> deleteQueue = new ConcurrentLinkedQueue<>();
         for(int i = 0; i < numberOfItems; ++i) {
-            String directory = Integer.toString(i);
+            String directory = "Новая Папка " + Integer.toString(i);
             addQueue.add(directory);
         }
 

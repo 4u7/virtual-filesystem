@@ -6,7 +6,6 @@ import com.company.vfs.exception.BlockLimitExceededException;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -273,6 +272,10 @@ class BlockManager {
         finally {
             lock.readLock().unlock();
         }
+    }
+
+    int getBlockSize() {
+        return blockSize;
     }
 
     private void setAllocated(int block) throws IOException {

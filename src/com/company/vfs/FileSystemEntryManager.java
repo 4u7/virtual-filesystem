@@ -334,7 +334,7 @@ class FileSystemEntryManager {
         return current;
     }
 
-    private Metadata getEntryMetadata(FileSystemEntry fileSystemEntry) {
+    private Metadata getEntryMetadata(FileSystemEntry fileSystemEntry) throws IOException {
         return metadataManager.getMetadata(fileSystemEntry.getMetadataId());
     }
 

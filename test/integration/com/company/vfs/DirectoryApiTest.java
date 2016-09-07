@@ -77,10 +77,10 @@ public class DirectoryApiTest {
 
     @Test
     public void createManyDirectories() throws Exception {
-        FileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
+        VirtualFileSystem fs = VirtualFileSystem.open(Utils.FILESYSTEM_FILENAME);
 
         String basePath = "/foo/Новая Папка 547/";
-        int directoriesCount = 1000;
+        int directoriesCount = 1500;
         ArrayList<String> directories = new ArrayList<>();
         for(int i = 0; i < directoriesCount; ++i) {
             directories.add("Новая Папка " + i);

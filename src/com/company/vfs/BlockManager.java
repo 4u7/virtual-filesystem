@@ -4,7 +4,9 @@ package com.company.vfs;
 import com.company.vfs.exception.BlockLimitExceededException;
 
 import java.io.IOException;
-import java.util.BitSet;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -20,6 +22,7 @@ class BlockManager {
     private final int blockTableOffset;
     private final BitSet blockMap;
     private final ReadWriteLock lock;
+    private final Map<Integer, List<Integer>> blockChainCache = new ConcurrentHashMap<>();
 
     BlockManager(int blockSize, int maxBlocks, ByteStorage byteStorage, ByteStorage dataBlocksStorage) throws IOException {
         this.blockSize = blockSize;
@@ -40,7 +43,9 @@ class BlockManager {
     int allocateBlockChain() throws IOException {
         lock.writeLock().lock();
         try {
-            return allocateBlock();
+            int block = allocateBlock();
+            blockChainCache.put(block, new ArrayList<>());
+            return block;
         }
         finally {
             lock.writeLock().unlock();
@@ -48,16 +53,20 @@ class BlockManager {
     }
 
     int getGlobalOffset(int firstBlock, int position) throws IOException {
+
+        int blockNumber = position / blockSize;
+        int offsetInBlock = position % blockSize;
+
+        if(blockNumber == 0 && firstBlock > 0) {
+            return firstBlock * blockSize + offsetInBlock;
+        }
+
         lock.readLock().lock();
         try {
-            int blockNumber = position / blockSize;
-            int offsetInBlock = position % blockSize;
-
             int blockIndex = getNthBlock(firstBlock, blockNumber);
             if (blockIndex < 0) {
                 throw new IndexOutOfBoundsException("No block found for given position.");
             }
-
             return blockIndex * blockSize + offsetInBlock;
         }
         finally {
@@ -66,13 +75,17 @@ class BlockManager {
     }
 
     int ensureGlobalOffset(int firstBlock, int position) throws IOException {
+
+        int blockNumber = position / blockSize;
+        int offsetInBlock = position % blockSize;
+
+        if(blockNumber == 0 && firstBlock > 0) {
+            return firstBlock * blockSize + offsetInBlock;
+        }
+
         lock.writeLock().lock();
         try {
-            int blockNumber = position / blockSize;
-            int offsetInBlock = position % blockSize;
-
             int blockIndex = ensureNthBlock(firstBlock, blockNumber);
-
             return blockIndex * blockSize + offsetInBlock;
         }
         finally {
@@ -83,6 +96,14 @@ class BlockManager {
     void truncateBlockChain(int firstBlock, int size) throws IOException {
         lock.writeLock().lock();
         try {
+
+            if(size <= 0) {
+                throw new IllegalArgumentException("size should be > 0");
+            }
+
+            if(firstBlock < 0) {
+                throw new IllegalArgumentException("invalid firstBlock");
+            }
 
             int currentBlock = firstBlock;
             int previousBlock = NO_BLOCK;
@@ -103,6 +124,12 @@ class BlockManager {
                 currentBlock = nextBlock;
                 ++blockCount;
             }
+
+            List<Integer> cachedBlockChain = blockChainCache.get(firstBlock);
+            if(cachedBlockChain != null) {
+                cachedBlockChain = cachedBlockChain.subList(0, maxBlocks - 1);
+                blockChainCache.put(firstBlock, cachedBlockChain);
+            }
         }
         finally {
             lock.writeLock().unlock();
@@ -118,6 +145,8 @@ class BlockManager {
                 setDeallocated(currentBlock);
                 currentBlock = nextBlock;
             }
+
+            blockChainCache.remove(firstBlock);
         }
         finally {
             lock.writeLock().unlock();
@@ -126,29 +155,73 @@ class BlockManager {
 
     private int getNthBlock(int firstBlock, int blockNumber) throws IOException {
 
-        int currentBlock = firstBlock;
-        int i = 1;
-        while(currentBlock >= 0 && i <= blockNumber) {
-            currentBlock = getNextBlock(currentBlock);
-            ++i;
+        if(blockNumber == 0) {
+            return firstBlock;
         }
 
-        return currentBlock;
+        List<Integer> cachedBlockChain = blockChainCache.get(firstBlock);
+        if(cachedBlockChain == null) {
+
+            int currentBlock = firstBlock;
+            cachedBlockChain = new ArrayList<>();
+
+            while(currentBlock >= 0) {
+                currentBlock = getNextBlock(currentBlock);
+                if(currentBlock < 0) {
+                    break;
+                }
+                cachedBlockChain.add(currentBlock);
+            }
+
+            blockChainCache.put(firstBlock, cachedBlockChain);
+        }
+
+        --blockNumber;
+        if(blockNumber > cachedBlockChain.size()) {
+            return NO_BLOCK;
+        }
+
+        return cachedBlockChain.get(blockNumber);
     }
 
     private int ensureNthBlock(int firstBlock, int blockNumber) throws IOException {
 
+        if(blockNumber == 0) {
+            return firstBlock;
+        }
+
         int currentBlock = firstBlock;
-        int i = 1;
-        while(i <= blockNumber) {
+        --blockNumber;
+
+        List<Integer> cachedBlockChain = blockChainCache.get(firstBlock);
+        if(cachedBlockChain == null) {
+            cachedBlockChain = new ArrayList<>();
+        }
+
+        if(blockNumber < cachedBlockChain.size()) {
+            return cachedBlockChain.get(blockNumber);
+        }
+        else
+        {
+            int cachedChainSize = cachedBlockChain.size();
+            if(cachedChainSize > 0) {
+                currentBlock = cachedBlockChain.get(cachedChainSize - 1);
+                blockNumber -= cachedChainSize;
+                cachedBlockChain = new ArrayList<>(cachedBlockChain); // copy list for modifications
+            }
+        }
+
+        while(blockNumber >= 0) {
             int nextBlock = getNextBlock(currentBlock);
             if(nextBlock < 0) {
                 nextBlock = allocateNextBlock(currentBlock);
             }
             currentBlock = nextBlock;
-            ++i;
+            cachedBlockChain.add(currentBlock);
+            --blockNumber;
         }
 
+        blockChainCache.put(firstBlock, cachedBlockChain);
         return currentBlock;
     }
 

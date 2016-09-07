@@ -184,6 +184,10 @@ class MetadataManager {
         private final int id;
         private final ByteStorage byteStorage;
 
+        volatile private Integer dataLength;
+        volatile private Integer firstBlock;
+        volatile private Type type;
+
         MappedMetadata(int id, ByteStorage byteStorage) {
 
             this.id = id;
@@ -192,31 +196,43 @@ class MetadataManager {
 
         @Override
         public int getDataLength() throws IOException {
-            return readField(DATA_LENGTH_INDEX);
+            if(dataLength == null) {
+                dataLength = readField(DATA_LENGTH_INDEX);
+            }
+            return dataLength;
         }
 
         @Override
         public void setDataLength(int length) throws IOException {
+            dataLength = length;
             writeField(DATA_LENGTH_INDEX, length);
         }
 
         @Override
         public int getFirstBlock() throws IOException {
-            return readField(FIRST_BLOCK_INDEX);
+            if(firstBlock == null) {
+                firstBlock = readField(FIRST_BLOCK_INDEX);
+            }
+            return firstBlock;
         }
 
         @Override
         public void setFirstBlock(int block) throws IOException {
+            firstBlock = block;
             writeField(FIRST_BLOCK_INDEX, block);
         }
 
         @Override
         public Type getType() throws IOException {
-            return Type.valueOf(readField(TYPE_INDEX));
+            if(type == null) {
+                type = Type.valueOf(readField(TYPE_INDEX));
+            }
+            return type;
         }
 
         @Override
         public void setType(Type type) throws IOException {
+            this.type = type;
             writeField(TYPE_INDEX, type.value);
         }
 

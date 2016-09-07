@@ -94,12 +94,6 @@ public class BlockManagerTest {
 
         manager.truncateBlockChain(firstBlock, 8000);
         assertThat(manager.getBlockCount(), is(2));
-
-        manager.truncateBlockChain(-1, 8000);
-        assertThat(manager.getBlockCount(), is(2));
-
-        manager.truncateBlockChain(firstBlock, 0);
-        assertThat(manager.getBlockCount(), is(0));
     }
 
     @Test(expected = IndexOutOfBoundsException.class)

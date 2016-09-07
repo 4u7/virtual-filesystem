@@ -463,15 +463,17 @@ class FileSystemEntryManager {
                 throw new ClosedStreamException();
             }
 
-            if(position >= metadata.getDataLength()) {
-                return -1;
+            synchronized (metadata) {
+                if (position >= metadata.getDataLength()) {
+                    return -1;
+                }
+
+                int offset = blockManager.getGlobalOffset(metadata.getFirstBlock(), position);
+                int result = dataBlockStorage.getByte(offset) & 0xFF;
+                ++position;
+
+                return result;
             }
-
-            int offset = blockManager.getGlobalOffset(metadata.getFirstBlock(), position);
-            int result = dataBlockStorage.getByte(offset) & 0xFF;
-            ++position;
-
-            return result;
         }
 
         @Override

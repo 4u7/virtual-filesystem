@@ -25,7 +25,6 @@ class MetadataManager {
     private final BlockManager blockManager;
     private final ByteStorage dataBlocksStorage;
     private final ByteStorage mapByteStorage;
-    private final ByteStorage metadataByteStorage;
     private final Metadata root;
 
     private int maxMetadata;
@@ -40,9 +39,6 @@ class MetadataManager {
 
         this.mapByteStorage = new BlockChainByteStorage(dataBlocksStorage,
                 blockManager, MAP_BLOCK_CHAIN);
-
-        this.metadataByteStorage = new BlockChainByteStorage(dataBlocksStorage,
-                blockManager, METADATA_BLOCK_CHAIN);
 
         maxMetadata = mapByteStorage.getInt(MAX_METADATA_OFFSET);
         int byteLength = (maxMetadata + 7) / 8;

@@ -28,6 +28,7 @@ public class BlockChainByteStorageTest {
         }
 
         byte[] testData = new byte[data.length];
+        testBuffer.position(0);
         testBuffer.get(testData);
         assertThat(testData, is(data));
         assertThat(testData, is(blockChainByteStorage.getBytes(0, data.length)));
@@ -51,6 +52,7 @@ public class BlockChainByteStorageTest {
             blockChainByteStorage.putInt(i * Integer.BYTES, data[i]);
         }
 
+        testBuffer.position(0);
         for(int i = 0; i < data.length; ++i) {
             assertThat(testBuffer.getInt(i * Integer.BYTES), is(data[i]));
             assertThat(blockChainByteStorage.getInt(i * Integer.BYTES), is(data[i]));
@@ -72,6 +74,7 @@ public class BlockChainByteStorageTest {
 
         blockChainByteStorage.putBytes(0, data);
 
+        testBuffer.position(0);
         byte[] testData = new byte[data.length];
         testBuffer.get(testData);
         assertThat(testData, is(data));

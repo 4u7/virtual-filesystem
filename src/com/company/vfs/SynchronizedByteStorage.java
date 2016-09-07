@@ -7,7 +7,6 @@ class SynchronizedByteStorage implements ByteStorage {
     private final ByteStorage byteStorage;
 
     SynchronizedByteStorage(ByteStorage byteStorage) {
-
         this.byteStorage = byteStorage;
     }
 
@@ -39,5 +38,10 @@ class SynchronizedByteStorage implements ByteStorage {
     @Override
     synchronized public void putBytes(int offset, byte[] bytes) throws IOException {
         byteStorage.putBytes(offset, bytes);
+    }
+
+    @Override
+    synchronized public void putBytes(int offset, byte[] bytes, int offsetInBytes, int length) throws IOException {
+        byteStorage.putBytes(offset, bytes, offsetInBytes, length);
     }
 }

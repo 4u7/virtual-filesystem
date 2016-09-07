@@ -60,4 +60,11 @@ class BlockChainByteStorage implements ByteStorage {
             putByte(offset + i, bytes[i]);
         }
     }
+
+    @Override
+    public void putBytes(int offset, byte[] bytes, int offsetInBytes, int length) throws IOException {
+        for(int i = offsetInBytes; i < length; ++i) {
+            putByte(offset + i, bytes[i]);
+        }
+    }
 }

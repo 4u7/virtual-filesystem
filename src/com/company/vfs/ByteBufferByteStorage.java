@@ -34,17 +34,21 @@ class ByteBufferByteStorage implements ByteStorage {
 
     @Override
     public byte[] getBytes(int offset, int length) throws IOException {
+        buffer.position(offset);
         byte[] result = new byte[length];
-        for (int i = 0; i < length; i++)
-            result[i] = buffer.get(offset + i);
-
+        buffer.get(result);
         return result;
     }
 
     @Override
     public void putBytes(int offset, byte[] bytes) throws IOException {
-        for(int i = 0; i < bytes.length; ++i) {
-            putByte(offset + i, bytes[i]);
-        }
+        buffer.position(offset);
+        buffer.put(bytes);
+    }
+
+    @Override
+    public void putBytes(int offset, byte[] bytes, int offsetInBytes, int length) {
+        buffer.position(offset);
+        buffer.put(bytes, offsetInBytes, length);
     }
 }

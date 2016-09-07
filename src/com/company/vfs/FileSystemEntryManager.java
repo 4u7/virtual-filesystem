@@ -436,6 +436,57 @@ class FileSystemEntryManager {
         }
 
         @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+            if (b == null) {
+                throw new NullPointerException();
+            }
+            else if ((off < 0) ||
+                    (off > b.length) ||
+                    (len < 0) ||
+                    ((off + len) > b.length) ||
+                    ((off + len) < 0)) {
+                throw new IndexOutOfBoundsException();
+            }
+            else if (len == 0) {
+                return;
+            }
+
+            if(closed) {
+                throw new ClosedStreamException();
+            }
+
+            synchronized (metadata) {
+                int firstBlock = metadata.getFirstBlock();
+                if (firstBlock < 0) {
+                    firstBlock = blockManager.allocateBlockChain();
+                    metadata.setFirstBlock(firstBlock);
+                }
+
+                int blockSize = blockManager.getBlockSize();
+                while(len > 0) {
+                    int offset = blockManager.ensureGlobalOffset(firstBlock, position);
+                    int remainingInBlock = blockSize - position % blockSize;
+                    if(len > remainingInBlock) {
+                        dataBlockStorage.putBytes(offset, b, off, remainingInBlock);
+                        position += remainingInBlock;
+                        len -= remainingInBlock;
+                        off += remainingInBlock;
+                    }
+                    else {
+                        dataBlockStorage.putBytes(offset, b, off, len);
+                        position += len;
+                        break;
+                    }
+                }
+
+                int dataLength = metadata.getDataLength();
+                if(position > dataLength) {
+                    metadata.setDataLength(position);
+                }
+            }
+        }
+
+        @Override
         public void close() throws IOException {
             super.close();
             if(!closed) {

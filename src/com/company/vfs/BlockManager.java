@@ -43,9 +43,7 @@ class BlockManager {
     int allocateBlockChain() throws IOException {
         lock.writeLock().lock();
         try {
-            int block = allocateBlock();
-            blockChainCache.put(block, new ArrayList<>());
-            return block;
+            return allocateBlock();
         }
         finally {
             lock.writeLock().unlock();

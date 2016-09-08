@@ -24,7 +24,6 @@ class MetadataManager {
 
     private final BlockManager blockManager;
     private final ByteStorage dataBlocksStorage;
-    private final ByteStorage mapByteStorage;
     private final Metadata root;
 
     private int maxMetadata;
@@ -37,15 +36,13 @@ class MetadataManager {
         this.dataBlocksStorage = dataBlocksStorage;
         this.metadataPerBlock = blockManager.getBlockSize() / MappedMetadata.BYTES;
 
-        this.mapByteStorage = new BlockChainByteStorage(dataBlocksStorage,
-                blockManager, MAP_BLOCK_CHAIN);
-
-        maxMetadata = mapByteStorage.getInt(MAX_METADATA_OFFSET);
+        maxMetadata = readMaxMetadata();
         int byteLength = (maxMetadata + 7) / 8;
 
         if(maxMetadata > 0) {
             byte[] mapBytes = new byte[byteLength];
-            mapByteStorage.getBytes(MAP_OFFSET, mapBytes);
+            int mapOffset = blockManager.getGlobalOffset(MAP_BLOCK_CHAIN, MAP_OFFSET);
+            dataBlocksStorage.getBytes(mapOffset, mapBytes);
             metadataMap = BitSet.valueOf(mapBytes);
         }
         else {
@@ -104,7 +101,7 @@ class MetadataManager {
 
             if(index >= maxMetadata) {
                 maxMetadata = index + 1;
-                mapByteStorage.putInt(MAX_METADATA_OFFSET, maxMetadata);
+                writeMaxMetadata(maxMetadata);
             }
 
             setAllocated(index);
@@ -132,7 +129,7 @@ class MetadataManager {
             int max = metadataMap.previousSetBit(maxMetadata - 1) + 1;
             if(max < maxMetadata) {
                 maxMetadata = max;
-                mapByteStorage.putInt(MAX_METADATA_OFFSET, maxMetadata);
+                writeMaxMetadata(maxMetadata);
 
                 int mapByteLength = (maxMetadata + 7) / 8;
                 blockManager.truncateBlockChain(MAP_BLOCK_CHAIN, MAP_OFFSET + mapByteLength);
@@ -164,18 +161,32 @@ class MetadataManager {
         metadataMap.set(index);
         // Set bit in storage
         int byteOffset = MAP_OFFSET + index / 8;
-        byte mapByte = mapByteStorage.getByte(byteOffset);
+        int offset = blockManager.ensureGlobalOffset(MAP_BLOCK_CHAIN, byteOffset);
+
+        byte mapByte = dataBlocksStorage.getByte(offset);
         mapByte |= 1 << (index % 8);
-        mapByteStorage.putByte(byteOffset, mapByte);
+        dataBlocksStorage.putByte(offset, mapByte);
     }
 
     private void setDeallocated(int index) throws IOException {
         metadataMap.clear(index);
         // Set bit in storage
         int byteOffset = MAP_OFFSET + index / 8;
-        byte mapByte = mapByteStorage.getByte(byteOffset);
+        int offset = blockManager.ensureGlobalOffset(MAP_BLOCK_CHAIN, byteOffset);
+
+        byte mapByte = dataBlocksStorage.getByte(offset);
         mapByte &= ~(1 << (index % 8));
-        mapByteStorage.putByte(byteOffset, mapByte);
+        dataBlocksStorage.putByte(offset, mapByte);
+    }
+
+    private int readMaxMetadata() throws IOException {
+        int maxOffset = blockManager.getGlobalOffset(MAP_BLOCK_CHAIN, MAX_METADATA_OFFSET);
+        return dataBlocksStorage.getInt(maxOffset);
+    }
+
+    private void writeMaxMetadata(int maxMetadata) throws IOException {
+        int maxOffset = blockManager.getGlobalOffset(MAP_BLOCK_CHAIN, MAX_METADATA_OFFSET);
+        dataBlocksStorage.putInt(maxOffset, maxMetadata);
     }
 
     private int metadataOffset(int index) {

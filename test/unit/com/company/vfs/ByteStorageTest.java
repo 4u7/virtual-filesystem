@@ -22,7 +22,9 @@ public class ByteStorageTest {
         byte[] buff = new byte[20];
         byteBuffer.get(buff);
 
-        assertThat(buff, is(synchronizedStorage.getBytes(0, 20)));
+        byte result[] = new byte[20];
+        synchronizedStorage.getBytes(0, result);
+        assertThat(buff, is(result));
     }
 
     @Test

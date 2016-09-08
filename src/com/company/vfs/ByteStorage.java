@@ -12,9 +12,11 @@ interface ByteStorage {
 
     void putInt(int offset, int value) throws IOException;
 
-    byte[] getBytes(int offset, int length) throws IOException;
+    void getBytes(int offset, byte[] dst) throws IOException;
 
-    void putBytes(int offset, byte[] bytes) throws IOException;
+    void getBytes(int offset, byte[] dst, int dstOffset, int length) throws IOException;
 
-    void putBytes(int offset, byte[] bytes, int offsetInBytes, int length) throws IOException;
+    void putBytes(int offset, byte[] source) throws IOException;
+
+    void putBytes(int offset, byte[] source, int sourceOffset, int length) throws IOException;
 }

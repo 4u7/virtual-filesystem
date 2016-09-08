@@ -31,7 +31,10 @@ public class BlockChainByteStorageTest {
         testBuffer.position(0);
         testBuffer.get(testData);
         assertThat(testData, is(data));
-        assertThat(testData, is(blockChainByteStorage.getBytes(0, data.length)));
+
+        byte result[] = new byte[data.length];
+        blockChainByteStorage.getBytes(0, result);
+        assertThat(testData, is(result));
     }
 
     @Test
@@ -78,7 +81,10 @@ public class BlockChainByteStorageTest {
         byte[] testData = new byte[data.length];
         testBuffer.get(testData);
         assertThat(testData, is(data));
-        assertThat(testData, is(blockChainByteStorage.getBytes(0, data.length)));
+
+        byte result[] = new byte[data.length];
+        blockChainByteStorage.getBytes(0, result);
+        assertThat(testData, is(result));
     }
 
 }

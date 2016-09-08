@@ -46,25 +46,28 @@ class BlockChainByteStorage implements ByteStorage {
     }
 
     @Override
-    public byte[] getBytes(int offset, int length) throws IOException {
-        byte[] result = new byte[length];
-        for (int i = 0; i < length; i++)
-            result[i] = getByte(offset + i);
-
-        return result;
+    public void getBytes(int offset, byte[] dst) throws IOException {
+        for (int i = 0; i < dst.length; i++)
+            dst[i] = getByte(offset + i);
     }
 
     @Override
-    public void putBytes(int offset, byte[] bytes) throws IOException {
-        for(int i = 0; i < bytes.length; ++i) {
-            putByte(offset + i, bytes[i]);
+    public void getBytes(int offset, byte[] dst, int dstOffset, int length) throws IOException {
+        for (int i = dstOffset; i < length; i++)
+            dst[i] = getByte(offset + i);
+    }
+
+    @Override
+    public void putBytes(int offset, byte[] source) throws IOException {
+        for(int i = 0; i < source.length; ++i) {
+            putByte(offset + i, source[i]);
         }
     }
 
     @Override
-    public void putBytes(int offset, byte[] bytes, int offsetInBytes, int length) throws IOException {
-        for(int i = offsetInBytes; i < length; ++i) {
-            putByte(offset + i, bytes[i]);
+    public void putBytes(int offset, byte[] source, int sourceOffset, int length) throws IOException {
+        for(int i = sourceOffset; i < length; ++i) {
+            putByte(offset + i, source[i]);
         }
     }
 }

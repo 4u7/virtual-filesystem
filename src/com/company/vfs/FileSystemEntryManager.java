@@ -528,6 +528,52 @@ class FileSystemEntryManager {
         }
 
         @Override
+        public int read(byte[] b, int off, int len) throws IOException {
+            if (b == null) {
+                throw new NullPointerException();
+            }
+            else if (off < 0 || len < 0 || len > b.length - off) {
+                throw new IndexOutOfBoundsException();
+            }
+            else if (len == 0) {
+                return 0;
+            }
+
+            if(closed) {
+                throw new ClosedStreamException();
+            }
+
+            synchronized (metadata) {
+                int dataLength = metadata.getDataLength();
+                if (position >= dataLength) {
+                    return -1;
+                }
+
+                int blockSize = blockManager.getBlockSize();
+                int total = 0;
+                while (len > 0) {
+                    int offset = blockManager.getGlobalOffset(metadata.getFirstBlock(), position);
+                    int available = dataLength - position;
+                    int remainingInBlock = blockSize - position % blockSize;
+                    int lengthToRead = len < available ? len : available;
+                    lengthToRead = lengthToRead < remainingInBlock ? lengthToRead : remainingInBlock;
+
+                    if(lengthToRead <= 0) {
+                        break;
+                    }
+
+                    dataBlockStorage.getBytes(offset, b, off, lengthToRead);
+                    off += lengthToRead;
+                    total += lengthToRead;
+                    position += lengthToRead;
+                    len -= lengthToRead;
+                }
+
+                return total;
+            }
+        }
+
+        @Override
         public int available() throws IOException {
             return metadata.getDataLength() - position;
         }

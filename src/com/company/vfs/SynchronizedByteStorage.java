@@ -31,17 +31,22 @@ class SynchronizedByteStorage implements ByteStorage {
     }
 
     @Override
-    synchronized public byte[] getBytes(int offset, int length) throws IOException {
-        return byteStorage.getBytes(offset, length);
+    synchronized public void getBytes(int offset, byte[] dst) throws IOException {
+        byteStorage.getBytes(offset, dst);
     }
 
     @Override
-    synchronized public void putBytes(int offset, byte[] bytes) throws IOException {
-        byteStorage.putBytes(offset, bytes);
+    synchronized public void getBytes(int offset, byte[] dst, int dstOffset, int length) throws IOException {
+        byteStorage.getBytes(offset, dst, dstOffset, length);
     }
 
     @Override
-    synchronized public void putBytes(int offset, byte[] bytes, int offsetInBytes, int length) throws IOException {
-        byteStorage.putBytes(offset, bytes, offsetInBytes, length);
+    synchronized public void putBytes(int offset, byte[] source) throws IOException {
+        byteStorage.putBytes(offset, source);
+    }
+
+    @Override
+    synchronized public void putBytes(int offset, byte[] source, int sourceOffset, int length) throws IOException {
+        byteStorage.putBytes(offset, source, sourceOffset, length);
     }
 }

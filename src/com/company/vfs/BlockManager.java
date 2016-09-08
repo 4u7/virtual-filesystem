@@ -31,7 +31,8 @@ class BlockManager {
 
         this.blockMapOffset = 0;
         int blockMapLength = (maxBlocks + 7) / 8;
-        byte[] blockMapBytes = byteStorage.getBytes(blockMapOffset, blockMapLength);
+        byte[] blockMapBytes = new byte[blockMapLength];
+        byteStorage.getBytes(blockMapOffset, blockMapBytes);
         blockMap = BitSet.valueOf(blockMapBytes);
 
         this.blockTableOffset = blockMapLength;

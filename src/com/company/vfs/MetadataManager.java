@@ -44,7 +44,8 @@ class MetadataManager {
         int byteLength = (maxMetadata + 7) / 8;
 
         if(maxMetadata > 0) {
-            byte[] mapBytes = mapByteStorage.getBytes(MAP_OFFSET, byteLength);
+            byte[] mapBytes = new byte[byteLength];
+            mapByteStorage.getBytes(MAP_OFFSET, mapBytes);
             metadataMap = BitSet.valueOf(mapBytes);
         }
         else {

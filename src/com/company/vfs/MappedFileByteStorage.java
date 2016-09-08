@@ -42,23 +42,27 @@ class MappedFileByteStorage implements ByteStorage {
     }
 
     @Override
-    public byte[] getBytes(int offset, int length) throws IOException {
+    public void getBytes(int offset, byte[] dst) throws IOException {
         byteBuffer.position(offset);
-        byte[] result = new byte[length];
-        byteBuffer.get(result);
-        return result;
+        byteBuffer.get(dst);
     }
 
     @Override
-    public void putBytes(int offset, byte[] bytes) throws IOException {
+    public void getBytes(int offset, byte[] dst, int dstOffset, int length) {
         byteBuffer.position(offset);
-        byteBuffer.put(bytes);
+        byteBuffer.get(dst, dstOffset, length);
     }
 
     @Override
-    public void putBytes(int offset, byte[] bytes, int offsetInBytes, int length) {
+    public void putBytes(int offset, byte[] source) throws IOException {
         byteBuffer.position(offset);
-        byteBuffer.put(bytes, offsetInBytes, length);
+        byteBuffer.put(source);
+    }
+
+    @Override
+    public void putBytes(int offset, byte[] source, int sourceOffset, int length) {
+        byteBuffer.position(offset);
+        byteBuffer.put(source, sourceOffset, length);
     }
 
     private void ensureMapping() throws IOException {
